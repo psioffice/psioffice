@@ -969,7 +969,24 @@ function confirmApplyAI() {
 
 // ==================== CALENDAR ====================
 let calendarMonth = new Date();
+let calendarView = 'month'; // 'month' | 'week'
+let calendarWeekStart = null;
+
+function getWeekStart(date) {
+  const d = new Date(date);
+  const day = (d.getDay() + 6) % 7; // Monday = 0
+  d.setDate(d.getDate() - day);
+  d.setHours(0,0,0,0);
+  return d;
+}
+
 function renderCalendar(el) {
+  if (!calendarWeekStart) calendarWeekStart = getWeekStart(new Date());
+  if (calendarView === 'week') return renderWeekCalendar(el);
+  return renderMonthCalendar(el);
+}
+
+function renderMonthCalendar(el) {
   const now = calendarMonth;
   const year = now.getFullYear(); const month = now.getMonth();
   const firstDay = new Date(year, month, 1);
@@ -988,16 +1005,21 @@ function renderCalendar(el) {
 
   el.innerHTML = `
     <div class="tab-content">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 10px;">
         <div>
           <h1 style="color: var(--azul-profundo); font-size: 36px; font-weight: 400; text-transform: capitalize;">${monthName}</h1>
           <p style="color: var(--text-light);">Agenda completa de tus sesiones</p>
         </div>
-        <div style="display: flex; gap: 8px; align-items: center;">
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <div style="display: inline-flex; background: var(--arena-light); border-radius: 8px; padding: 2px;">
+            <button class="btn ${calendarView==='month'?'btn-primary':''}" style="margin: 0; border: none; padding: 6px 12px; font-size: 12px;" onclick="calendarView='month'; renderMain();">Mes</button>
+            <button class="btn ${calendarView==='week'?'btn-primary':''}" style="margin: 0; border: none; padding: 6px 12px; font-size: 12px;" onclick="calendarView='week'; calendarWeekStart = getWeekStart(new Date()); renderMain();">Semana</button>
+          </div>
           <button class="btn" onclick="changeCalendarMonth(-1)">← Anterior</button>
           <button class="btn" onclick="calendarMonth = new Date(); renderMain();">Hoy</button>
           <button class="btn" onclick="changeCalendarMonth(1)">Siguiente →</button>
-          <button class="btn btn-primary" onclick="exportMonthICS()">📥 Descargar al calendario (.ics)</button>
+          <button class="btn btn-secondary" onclick="openNewSessionModal(new Date().toISOString().split('T')[0])">+ Nueva sesión</button>
+          <button class="btn btn-primary" onclick="exportMonthICS()">📥 .ics</button>
         </div>
       </div>
 
@@ -1012,9 +1034,9 @@ function renderCalendar(el) {
             const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
             const sess = (byDate[dateStr]||[]).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
             const isToday = dateStr === today;
-            return `<div style="background: var(--blanco); min-height: 110px; padding: 6px; position: relative; ${isToday?'background: var(--arena-light); outline: 2px solid var(--azul-medio); outline-offset: -2px;':''}">
+            return `<div onclick="openNewSessionModal('${dateStr}')" style="background: var(--blanco); min-height: 110px; padding: 6px; position: relative; cursor: pointer; transition: background 0.1s; ${isToday?'background: var(--arena-light); outline: 2px solid var(--azul-medio); outline-offset: -2px;':''}" onmouseover="this.style.background='var(--arena-light)'" onmouseout="this.style.background='${isToday?'var(--arena-light)':'var(--blanco)'}'">
               <div style="font-size: 13px; font-weight: 600; color: ${isToday?'var(--azul-profundo)':'var(--text)'}; margin-bottom: 4px;">${day}</div>
-              ${sess.slice(0,4).map(s => `<div onclick="selectPatient('${s.patientId}'); setTimeout(()=>selectTab('sessions'), 100);" style="font-size: 11px; background: var(--azul-claro); color: white; padding: 2px 5px; border-radius: 4px; margin-bottom: 2px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(s.patientName)} - ${s.time||''}">${s.time?s.time+' ':''}${escapeHtml(s.patientName.split(' ')[0])}</div>`).join('')}
+              ${sess.slice(0,4).map(s => `<div onclick="event.stopPropagation(); selectPatient('${s.patientId}'); setTimeout(()=>selectTab('sessions'), 100);" style="font-size: 11px; background: var(--azul-claro); color: white; padding: 2px 5px; border-radius: 4px; margin-bottom: 2px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(s.patientName)} - ${s.time||''}">${s.time?s.time+' ':''}${escapeHtml(s.patientName.split(' ')[0])}</div>`).join('')}
               ${sess.length > 4 ? `<div style="font-size: 10px; color: var(--text-light);">+${sess.length-4} más</div>` : ''}
             </div>`;
           }).join('')}
@@ -1054,6 +1076,165 @@ function renderCalendar(el) {
 function changeCalendarMonth(delta) {
   calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth()+delta, 1);
   renderMain();
+}
+
+
+// ===== WEEK VIEW =====
+function renderWeekCalendar(el) {
+  const weekStart = calendarWeekStart;
+  const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate()+6);
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(weekStart); d.setDate(d.getDate()+i);
+    days.push(d);
+  }
+  const hours = [];
+  for (let h = 7; h <= 22; h++) hours.push(h);
+
+  // Collect sessions by date
+  const byDate = {};
+  for (const p of data.patients) for (const s of p.sessions) {
+    if (!s.date) continue;
+    (byDate[s.date] = byDate[s.date] || []).push({...s, patientName: p.personal.name, patientId: p.id});
+  }
+
+  const formatDayLabel = (d) => d.toLocaleDateString('es-AR', {weekday:'short', day:'2-digit', month:'2-digit'});
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  el.innerHTML = `
+    <div class="tab-content">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 10px;">
+        <div>
+          <h1 style="color: var(--azul-profundo); font-size: 36px; font-weight: 400;">Semana del ${formatDate(weekStart.toISOString())}</h1>
+          <p style="color: var(--text-light);">Vista semanal · hacé clic en cualquier slot para agendar</p>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <div style="display: inline-flex; background: var(--arena-light); border-radius: 8px; padding: 2px;">
+            <button class="btn" style="margin: 0; border: none; padding: 6px 12px; font-size: 12px;" onclick="calendarView='month'; renderMain();">Mes</button>
+            <button class="btn btn-primary" style="margin: 0; border: none; padding: 6px 12px; font-size: 12px;">Semana</button>
+          </div>
+          <button class="btn" onclick="changeCalendarWeek(-1)">← Anterior</button>
+          <button class="btn" onclick="calendarWeekStart = getWeekStart(new Date()); renderMain();">Esta semana</button>
+          <button class="btn" onclick="changeCalendarWeek(1)">Siguiente →</button>
+          <button class="btn btn-secondary" onclick="openNewSessionModal(new Date().toISOString().split('T')[0])">+ Nueva sesión</button>
+        </div>
+      </div>
+
+      <div class="card" style="padding: 0; overflow: auto;">
+        <div style="display: grid; grid-template-columns: 60px repeat(7, 1fr); min-width: 800px;">
+          <div style="background: var(--azul-profundo); color: var(--arena); padding: 10px; text-align: center; font-size: 11px; text-transform: uppercase;"></div>
+          ${days.map(d => {
+            const dStr = d.toISOString().split('T')[0];
+            const isToday = dStr === todayStr;
+            return `<div style="background: ${isToday?'var(--azul-medio)':'var(--azul-profundo)'}; color: var(--arena); padding: 10px; text-align: center; font-size: 12px; font-weight: 600; text-transform: capitalize;">${formatDayLabel(d)}</div>`;
+          }).join('')}
+          ${hours.map(h => `
+            <div style="background: var(--arena-light); padding: 4px; text-align: right; font-size: 11px; color: var(--text-light); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);">${h}:00</div>
+            ${days.map(d => {
+              const dStr = d.toISOString().split('T')[0];
+              const sess = (byDate[dStr]||[]).filter(s => {
+                const [sh] = (s.time||'').split(':');
+                return parseInt(sh) === h;
+              });
+              return `<div onclick="openNewSessionModal('${dStr}', '${String(h).padStart(2,'0')}:00')" style="min-height: 44px; background: var(--blanco); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 2px; cursor: pointer; transition: background 0.1s;" onmouseover="this.style.background='var(--arena-light)'" onmouseout="this.style.background='var(--blanco)'">
+                ${sess.map(s => `<div onclick="event.stopPropagation(); selectPatient('${s.patientId}'); setTimeout(()=>selectTab('sessions'), 100);" style="background: var(--azul-claro); color: white; padding: 3px 6px; border-radius: 4px; font-size: 11px; margin-bottom: 2px; cursor: pointer;" title="${escapeHtml(s.patientName)} ${s.time||''}">${s.time?s.time+' ':''}${escapeHtml(s.patientName.split(' ')[0])}</div>`).join('')}
+              </div>`;
+            }).join('')}
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 20px; background: var(--arena-light);">
+        <p style="font-size: 13px; color: var(--text); line-height: 1.6;"><strong>💡 Tip:</strong> hacé clic en cualquier franja vacía para agendar una sesión a esa hora. Las sesiones ya existentes son los recuadros azules — clic sobre ellas te lleva a la ficha del paciente.</p>
+      </div>
+    </div>
+  `;
+}
+
+function changeCalendarWeek(delta) {
+  calendarWeekStart = new Date(calendarWeekStart);
+  calendarWeekStart.setDate(calendarWeekStart.getDate() + delta*7);
+  renderMain();
+}
+
+// ===== NEW SESSION MODAL (with recurring option) =====
+function openNewSessionModal(dateStr, timeStr) {
+  const date = dateStr || new Date().toISOString().split('T')[0];
+  const time = timeStr || '';
+  if (data.patients.length === 0) {
+    toast('Primero agregá un paciente');
+    showView('patients');
+    return;
+  }
+  openModal(`
+    <h2>Nueva sesión</h2>
+    <div class="field"><label>Paciente</label>
+      <select id="ns_patient" onchange="updateDefaultAmount()">
+        <option value="">— Elegí un paciente —</option>
+        ${data.patients.map(p => `<option value="${p.id}">${escapeHtml(p.personal.name)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="grid-3">
+      <div class="field"><label>Fecha</label><input type="date" id="ns_date" value="${date}"></div>
+      <div class="field"><label>Hora</label><input type="time" id="ns_time" value="${time}"></div>
+      <div class="field"><label>Duración (min)</label><input type="number" id="ns_duration" value="50"></div>
+    </div>
+    <div class="field"><label>Monto (${data.settings.currency})</label><input type="number" id="ns_amount" value="0"></div>
+    <div class="field"><label>Notas / motivo breve (opcional)</label><textarea id="ns_notes" rows="2"></textarea></div>
+
+    <div style="background: var(--arena-light); padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+      <div class="checkbox-row" style="margin-bottom: 10px;">
+        <input type="checkbox" id="ns_recur" onchange="document.getElementById('ns_recurWrap').style.display=this.checked?'block':'none'">
+        <label for="ns_recur" style="margin: 0; text-transform: none; letter-spacing: normal; font-size: 13.5px; color: var(--text); font-weight: 600;">🔁 Repetir cada semana</label>
+      </div>
+      <div id="ns_recurWrap" style="display: none;">
+        <div class="field" style="margin: 0;"><label>¿Durante cuántas semanas?</label><input type="number" id="ns_weeks" value="4" min="1" max="52"><div style="font-size: 11px; color: var(--text-light); margin-top: 4px;">Se crearán sesiones el mismo día de la semana, a la misma hora, durante X semanas.</div></div>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmNewSession()">Agendar</button>
+    </div>
+  `);
+}
+
+function updateDefaultAmount() {
+  const pid = document.getElementById('ns_patient').value;
+  if (!pid) return;
+  const p = getPatient(pid);
+  document.getElementById('ns_amount').value = p.fee.amount || 0;
+}
+
+function confirmNewSession() {
+  const pid = document.getElementById('ns_patient').value;
+  const date = document.getElementById('ns_date').value;
+  const time = document.getElementById('ns_time').value;
+  const duration = parseInt(document.getElementById('ns_duration').value) || 50;
+  const amount = parseFloat(document.getElementById('ns_amount').value) || 0;
+  const notes = document.getElementById('ns_notes').value;
+  const recur = document.getElementById('ns_recur').checked;
+  const weeks = recur ? Math.max(1, Math.min(52, parseInt(document.getElementById('ns_weeks').value) || 4)) : 1;
+
+  if (!pid) return toast('Elegí un paciente');
+  if (!date) return toast('Elegí una fecha');
+
+  const p = getPatient(pid);
+  let count = 0;
+  for (let i = 0; i < weeks; i++) {
+    const d = new Date(date);
+    d.setDate(d.getDate() + i*7);
+    const sessDate = d.toISOString().split('T')[0];
+    p.sessions.push({
+      id: uuid(), date: sessDate, time, duration,
+      notes, interventions: '', homework: '',
+      amount, paid: false, commissionPaid: false,
+      recurGroup: recur ? ('rec_' + Date.now()) : null
+    });
+    count++;
+  }
+  saveData(); closeModal(); renderMain(); renderSidebar();
+  toast(count > 1 ? `✓ ${count} sesiones agendadas` : '✓ Sesión agendada');
 }
 
 // ==================== .ICS EXPORT (Google/Apple Calendar) ====================
@@ -1191,9 +1372,11 @@ function renderHome(el) {
         <h3>${hasData ? 'Accesos rápidos' : 'Empezá acá'}</h3>
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
           ${hasData ? `
-            <button class="btn btn-primary" onclick="showView('dashboard')">◎ Ver tablero del mes</button>
-            <button class="btn" onclick="showView('cierre')">◐ Hacer cierre semanal</button>
-            <button class="btn" onclick="showView('patients')">◉ Mis pacientes (${data.patients.length})</button>
+            <button class="btn btn-primary" onclick="openNewSessionModal(new Date().toISOString().split('T')[0])">+ Agendar sesión</button>
+            <button class="btn" onclick="showView('calendar')">📅 Ver calendario</button>
+            <button class="btn" onclick="showView('dashboard')">◎ Tablero del mes</button>
+            <button class="btn" onclick="showView('cierre')">◐ Cierre semanal</button>
+            <button class="btn" onclick="showView('patients')">◉ Pacientes (${data.patients.length})</button>
             <button class="btn" onclick="newPatientModal()">+ Nuevo paciente</button>
           ` : `
             <button class="btn btn-primary" onclick="openSettings()">⚙ Configurar mis datos profesionales</button>
