@@ -1,0 +1,3080 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PsiOffice — Gestión clínica para profesionales de la salud mental</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..800;1,9..144,300..800&family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --azul-profundo: #2d3e50;
+    --azul-medio: #25627c;
+    --azul-claro: #6997a6;
+    --arena: #eee8dc;
+    --arena-dark: #e2dccd;
+    --arena-light: #f7f3ea;
+    --blanco: #ffffff;
+    --text: #1f2937;
+    --text-light: #6b7280;
+    --text-muted: #9ca3af;
+    --border: #e4ddd0;
+    --success: #4a7c59;
+    --warning: #c89b3c;
+    --danger: #a84242;
+    --shadow: 0 1px 3px rgba(45, 62, 80, 0.08);
+    --shadow-lg: 0 4px 12px rgba(45, 62, 80, 0.12);
+    --radius: 14px;
+    --radius-sm: 10px;
+    --font-serif: 'Fraunces', Georgia, serif;
+    --font-sans: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-sans);
+    background: var(--arena);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    font-weight: 400;
+    font-size: 14px;
+  }
+  body.dark {
+    --arena: #1a2530;
+    --arena-dark: #141d26;
+    --arena-light: #223040;
+    --blanco: #2d3e50;
+    --text: #eee8dc;
+    --text-light: #a8b4c0;
+    --text-muted: #6b7a8a;
+    --border: #3a4d60;
+  }
+  h1, h2, h3, h4 { font-family: var(--font-serif); font-weight: 500; letter-spacing: -0.01em; }
+  #app { display: flex; flex-direction: column; height: 100vh; }
+  header {
+    background: var(--azul-profundo);
+    color: var(--arena);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: var(--shadow);
+  }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-wave {
+    width: 36px; height: 36px;
+    background: var(--arena);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .logo-wave svg { width: 24px; height: 24px; }
+  .logo-text {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    font-size: 18px;
+    line-height: 1.1;
+  }
+  .logo-text small { display: block; font-family: var(--font-sans); font-size: 10px; font-weight: 500; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 2px; }
+  .header-actions { display: flex; gap: 8px; align-items: center; }
+  .layout { display: flex; flex: 1; overflow: hidden; }
+  aside {
+    width: 260px;
+    background: var(--arena-light);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .nav-section { padding: 10px 8px; border-bottom: 1px solid var(--border); }
+  .nav-section-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); padding: 6px 12px; font-weight: 600; }
+  .nav-btn {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; padding: 10px 12px;
+    background: transparent; border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer; text-align: left;
+    color: var(--text); font-size: 13.5px; font-weight: 500;
+    font-family: var(--font-sans);
+    transition: background 0.15s;
+  }
+  .nav-btn:hover { background: var(--arena-dark); }
+  .nav-btn.active { background: var(--azul-profundo); color: var(--arena); }
+  .nav-btn .nav-icon { width: 18px; text-align: center; }
+  .search-box { padding: 10px 12px; }
+  .search-box input {
+    width: 100%; padding: 9px 12px;
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 13px; background: var(--blanco);
+    font-family: var(--font-sans);
+  }
+  .patient-list { flex: 1; overflow-y: auto; padding: 4px 8px; }
+  .patient-item {
+    padding: 10px 12px; border-radius: var(--radius-sm);
+    cursor: pointer; margin-bottom: 3px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 13.5px; font-weight: 500;
+  }
+  .patient-item:hover { background: var(--arena-dark); }
+  .patient-item.active { background: var(--azul-claro); color: var(--arena); }
+  .patient-item .badge {
+    background: var(--warning); color: white;
+    font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 700;
+  }
+  .new-patient-btn {
+    margin: 10px 12px;
+    padding: 10px; background: var(--azul-profundo); color: var(--arena);
+    border: none; border-radius: var(--radius-sm);
+    font-weight: 600; cursor: pointer; font-size: 13px;
+    font-family: var(--font-sans);
+  }
+  .new-patient-btn:hover { background: var(--azul-medio); }
+  main { flex: 1; overflow-y: auto; background: var(--arena); }
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 100%; color: var(--text-light); text-align: center; padding: 60px;
+  }
+  .empty-state h2 { font-size: 28px; margin-bottom: 12px; color: var(--azul-profundo); font-style: italic; }
+  .empty-state p { max-width: 400px; line-height: 1.6; }
+  .patient-header {
+    background: var(--arena-light);
+    padding: 24px 32px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .patient-header h1 { font-size: 30px; color: var(--azul-profundo); font-weight: 400; margin-bottom: 4px; }
+  .patient-header .subtitle { color: var(--text-light); font-size: 13px; }
+  .patient-actions { display: flex; gap: 8px; margin-top: 14px; padding-bottom: 14px; }
+  .tabs {
+    background: var(--arena-light);
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    overflow-x: auto;
+  }
+  .tab {
+    padding: 12px 14px; background: transparent; border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer; font-size: 13px; color: var(--text-light);
+    font-weight: 500; white-space: nowrap;
+    font-family: var(--font-sans);
+  }
+  .tab.active { color: var(--azul-profundo); border-bottom-color: var(--azul-profundo); font-weight: 600; }
+  .tab-content { padding: 28px 32px; max-width: 1200px; }
+  .card {
+    background: var(--blanco);
+    border-radius: var(--radius);
+    padding: 22px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+  }
+  .card h3 { font-size: 18px; color: var(--azul-profundo); margin-bottom: 16px; font-weight: 500; }
+  .card h4 { font-size: 15px; color: var(--azul-medio); margin-bottom: 10px; font-weight: 600; font-family: var(--font-sans); }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  label {
+    display: block; font-size: 11px; font-weight: 600;
+    color: var(--text-light); margin-bottom: 5px;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  input, textarea, select {
+    width: 100%; padding: 9px 12px;
+    border: 1px solid var(--border); border-radius: 8px;
+    font-size: 14px; font-family: var(--font-sans);
+    background: var(--blanco); color: var(--text);
+  }
+  textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: var(--azul-medio); box-shadow: 0 0 0 3px rgba(37, 98, 124, 0.1); }
+  .field { margin-bottom: 14px; }
+  .btn {
+    padding: 9px 16px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--blanco);
+    cursor: pointer; font-size: 13px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--font-sans); color: var(--text);
+    transition: all 0.15s;
+  }
+  .btn:hover { background: var(--arena-dark); }
+  .btn-primary { background: var(--azul-profundo); color: var(--arena); border-color: var(--azul-profundo); }
+  .btn-primary:hover { background: var(--azul-medio); }
+  .btn-secondary { background: var(--azul-claro); color: white; border-color: var(--azul-claro); }
+  .btn-secondary:hover { opacity: 0.9; background: var(--azul-claro); }
+  .btn-danger { background: var(--blanco); color: var(--danger); border-color: var(--danger); }
+  .btn-danger:hover { background: var(--danger); color: white; }
+  .btn-success { background: var(--success); color: white; border-color: var(--success); }
+  .btn-success:hover { opacity: 0.9; background: var(--success); }
+  .btn-ghost { background: transparent; border-color: transparent; }
+  .save-status { font-size: 12px; color: var(--success); margin-left: 10px; opacity: 0; transition: opacity 0.3s; }
+  .save-status.visible { opacity: 1; }
+  /* Session item */
+  .session-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+  .session-item-header .date { font-weight: 600; color: var(--azul-profundo); font-size: 15px; }
+  .status { font-size: 11px; padding: 3px 10px; border-radius: 12px; font-weight: 600; }
+  .status.paid { background: #e8f0e9; color: var(--success); }
+  .status.pending { background: #fbf2d8; color: var(--warning); }
+  /* Genogram */
+  .genogram-toolbar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; padding: 12px; background: var(--arena-light); border-radius: var(--radius-sm); border: 1px solid var(--border); }
+  #genogramCanvas { background: var(--blanco); border: 1px solid var(--border); border-radius: var(--radius-sm); width: 100%; height: 600px; cursor: default; }
+  .genogram-node { cursor: move; }
+  .genogram-hint { font-size: 12.5px; color: var(--text-light); padding: 10px 14px; background: var(--arena-light); border-radius: var(--radius-sm); margin-bottom: 12px; line-height: 1.5; }
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(45, 62, 80, 0.5);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; backdrop-filter: blur(3px);
+  }
+  .modal {
+    background: var(--blanco); border-radius: var(--radius);
+    padding: 28px; min-width: 420px; max-width: 90vw;
+    max-height: 90vh; overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+  }
+  .modal h2 { margin-bottom: 18px; color: var(--azul-profundo); font-size: 22px; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 22px; }
+  /* Stat cards */
+  .stat-card { background: var(--blanco); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); border: 1px solid var(--border); }
+  .stat-card.highlight { background: var(--azul-profundo); color: var(--arena); border-color: var(--azul-profundo); }
+  .stat-card.highlight .stat-label, .stat-card.highlight .stat-value { color: var(--arena); }
+  .stat-value { font-family: var(--font-serif); font-size: 32px; font-weight: 500; color: var(--azul-profundo); line-height: 1; }
+  .stat-label { color: var(--text-light); font-size: 12.5px; margin-top: 6px; font-weight: 500; }
+  .stat-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  /* Alerts */
+  .alert-item {
+    padding: 12px 14px; border-radius: var(--radius-sm);
+    margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;
+    background: var(--arena-light); border: 1px solid var(--border);
+  }
+  .alert-item.warning { background: #fdf6e3; border-color: #efdca5; border-left: 4px solid var(--warning); }
+  .alert-item.danger { background: #fae9e9; border-color: #e8bcbc; border-left: 4px solid var(--danger); }
+  .alert-item.info { background: #e8eff4; border-color: #c4d6e0; border-left: 4px solid var(--azul-medio); }
+  .alert-item.success { background: #e8f0e9; border-color: #bed2c3; border-left: 4px solid var(--success); }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-light); }
+  .legend-symbol { width: 20px; height: 20px; }
+  .toast {
+    position: fixed; bottom: 20px; right: 20px;
+    background: var(--azul-profundo); color: var(--arena);
+    padding: 12px 20px; border-radius: 10px; z-index: 2000;
+    opacity: 0; transform: translateY(10px); transition: all 0.3s;
+    box-shadow: var(--shadow-lg);
+  }
+  .toast.visible { opacity: 1; transform: translateY(0); }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .checkbox-row { display: flex; align-items: center; gap: 6px; }
+  .checkbox-row input { width: auto; }
+  .commission-row {
+    display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto;
+    gap: 10px; padding: 10px;
+    border-bottom: 1px solid var(--border); align-items: center; font-size: 14px;
+  }
+  .commission-row.header { font-weight: 600; background: var(--arena-light); border-radius: 6px; color: var(--azul-profundo); }
+  .progress-bar { width: 100%; height: 10px; background: var(--arena-dark); border-radius: 10px; overflow: hidden; margin-top: 8px; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--azul-medio), var(--azul-claro)); transition: width 0.4s; }
+  .checklist-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px; background: var(--arena-light); border-radius: 8px; margin-bottom: 6px; }
+  .checklist-item input { width: auto; margin-top: 3px; }
+  .checklist-item label { margin: 0; text-transform: none; letter-spacing: normal; font-size: 13.5px; color: var(--text); font-weight: 500; line-height: 1.4; }
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; background: var(--arena-dark); color: var(--azul-profundo); }
+  .divider { height: 1px; background: var(--border); margin: 16px 0; }
+  details { background: var(--arena-light); border-radius: var(--radius-sm); padding: 12px 16px; margin-bottom: 8px; }
+  summary { cursor: pointer; font-weight: 600; color: var(--azul-profundo); }
+  details[open] summary { margin-bottom: 10px; }
+</style>
+</head>
+<body>
+<div id="loginScreen" style="display: none; min-height: 100vh; background: linear-gradient(135deg, var(--azul-profundo) 0%, var(--azul-medio) 100%); padding: 40px 20px; overflow-y: auto;">
+  <div style="max-width: 440px; margin: 40px auto; background: var(--blanco); border-radius: 20px; padding: 40px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+    <div style="text-align: center; margin-bottom: 30px;">
+      <div style="display: inline-flex; align-items: center; justify-content: center; width: 60px; height: 60px; background: var(--arena); border-radius: 50%; margin-bottom: 14px;">
+        <svg viewBox="0 0 48 48" width="36" height="36"><path d="M8 28 Q 16 20, 24 28 T 40 28" stroke="#2d3e50" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M8 34 Q 16 26, 24 34 T 40 34" stroke="#2d3e50" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.5"/></svg>
+      </div>
+      <h1 style="font-size: 32px; color: var(--azul-profundo); font-weight: 400;">PsiOffice</h1>
+      <p style="color: var(--text-light); font-size: 13px;">Gestión clínica privada</p>
+    </div>
+    <div id="loginContent"></div>
+  </div>
+</div>
+<div id="app" style="display: none;">
+  <header>
+    <div class="logo">
+      <div class="logo-wave">
+        <svg viewBox="0 0 48 48" fill="none">
+          <path d="M8 28 Q 16 20, 24 28 T 40 28" stroke="#2d3e50" stroke-width="3" fill="none" stroke-linecap="round"/>
+          <path d="M8 34 Q 16 26, 24 34 T 40 34" stroke="#2d3e50" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.5"/>
+        </svg>
+      </div>
+      <div class="logo-text">
+        PsiOffice
+        <small>Gestión clínica</small>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-ghost" onclick="toggleTheme()" title="Modo oscuro">◐</button>
+      <button class="btn" onclick="openBackup()">💾 Backup</button>
+      <button class="btn" onclick="openSettings()">⚙ Ajustes</button>
+      <button class="btn btn-primary" onclick="exportCurrentPatient()" id="exportBtn" style="display:none;">↓ Descargar paciente</button>
+      <button class="btn btn-ghost" onclick="logout()" title="Cerrar sesión">⎋</button>
+    </div>
+  </header>
+  <div class="layout">
+    <aside>
+      <div class="nav-section">
+        <div class="nav-section-title">General</div>
+        <button class="nav-btn active" data-view="home" onclick="showView('home')"><span class="nav-icon">◉</span> Inicio</button>
+        <button class="nav-btn" data-view="dashboard" onclick="showView('dashboard')"><span class="nav-icon">◎</span> Tablero del mes</button>
+        <button class="nav-btn" data-view="calendar" onclick="showView('calendar')"><span class="nav-icon">📅</span> Calendario</button>
+        <button class="nav-btn" data-view="patients" onclick="showView('patients')"><span class="nav-icon">◉</span> Pacientes</button>
+        <button class="nav-btn" data-view="cierre" onclick="showView('cierre')"><span class="nav-icon">◐</span> Cierre semanal</button>
+        <button class="nav-btn" data-view="waitlist" onclick="showView('waitlist')"><span class="nav-icon">⏳</span> Lista de espera</button>
+        <button class="nav-btn" data-view="templates" onclick="showView('templates')"><span class="nav-icon">💬</span> Plantillas WhatsApp</button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">Finanzas</div>
+        <button class="nav-btn" data-view="honorarios" onclick="showView('honorarios')"><span class="nav-icon">◈</span> Calculadora honorarios</button>
+        <button class="nav-btn" data-view="obras" onclick="showView('obras')"><span class="nav-icon">◇</span> Obras sociales</button>
+        <button class="nav-btn" data-view="team" onclick="showView('team')"><span class="nav-icon">◆</span> Equipo y comisiones</button>
+      </div>
+      <div id="patientListWrapper" style="flex: 1; overflow: hidden; display: flex; flex-direction: column;"></div>
+    </aside>
+    <main id="mainContent"></main>
+  </div>
+</div>
+<div id="modalRoot"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ==================== PROFILES & ENCRYPTION ====================
+const PROFILES_KEY = 'theralink_profiles';
+let currentProfileId = null;
+let encryptionKey = null;
+let data = null;
+
+function loadProfiles() {
+  try { return JSON.parse(localStorage.getItem(PROFILES_KEY)) || { profiles: [] }; }
+  catch (e) { return { profiles: [] }; }
+}
+function saveProfilesList(p) { localStorage.setItem(PROFILES_KEY, JSON.stringify(p)); }
+
+async function deriveKey(password, saltBase64) {
+  const enc = new TextEncoder();
+  const salt = Uint8Array.from(atob(saltBase64), c => c.charCodeAt(0));
+  const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' }, keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+function randomBase64(bytes) {
+  const arr = crypto.getRandomValues(new Uint8Array(bytes));
+  return btoa(String.fromCharCode(...arr));
+}
+async function encryptJSON(key, obj) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const enc = new TextEncoder();
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(JSON.stringify(obj)));
+  return { iv: btoa(String.fromCharCode(...iv)), ct: btoa(String.fromCharCode(...new Uint8Array(ct))) };
+}
+async function decryptJSON(key, { iv, ct }) {
+  const ivBuf = Uint8Array.from(atob(iv), c => c.charCodeAt(0));
+  const ctBuf = Uint8Array.from(atob(ct), c => c.charCodeAt(0));
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ivBuf }, key, ctBuf);
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+
+// ==================== LOGIN UI ====================
+function showLogin() {
+  document.getElementById('loginScreen').style.display = '';
+  document.getElementById('app').style.display = 'none';
+  renderProfilesList();
+}
+function hideLogin() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+}
+
+function renderProfilesList() {
+  const prof = loadProfiles();
+  const el = document.getElementById('loginContent');
+  if (prof.profiles.length === 0) return renderCreateFirstProfile();
+  el.innerHTML = `
+    <h2 style="color: var(--azul-profundo); font-size: 20px; margin-bottom: 16px;">Elegí tu perfil</h2>
+    ${prof.profiles.map(p => `
+      <button onclick="openProfile('${p.id}')" style="display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 16px; margin-bottom: 8px; background: var(--arena-light); border: 1px solid var(--border); border-radius: 12px; cursor: pointer; text-align: left; font-family: var(--font-sans); transition: all 0.15s;" onmouseover="this.style.borderColor='var(--azul-medio)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="width: 40px; height: 40px; background: var(--azul-profundo); color: var(--arena); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600;">${escapeHtml((p.name||'?').charAt(0).toUpperCase())}</div>
+        <div style="flex: 1;">
+          <div style="font-weight: 600; color: var(--text);">${escapeHtml(p.name)}</div>
+          <div style="font-size: 12px; color: var(--text-light);">${p.hasPassword?'🔒 Protegido con contraseña':'🔓 Sin contraseña'}</div>
+        </div>
+      </button>
+    `).join('')}
+    <div class="divider"></div>
+    <button class="btn" style="width: 100%;" onclick="renderCreateProfile()">+ Crear otro perfil</button>
+    <button class="btn" style="width: 100%; margin-top: 8px;" onclick="renderImportProfile()">↑ Importar perfil desde otro dispositivo</button>
+  `;
+}
+
+function renderCreateFirstProfile() {
+  document.getElementById('loginContent').innerHTML = `
+    <h2 style="color: var(--azul-profundo); font-size: 22px; margin-bottom: 8px;">¡Hola! Qué bueno tenerte acá</h2>
+    <p style="color: var(--text-light); font-size: 14px; margin-bottom: 20px; line-height: 1.5;">Creá tu primer perfil. Tus datos quedan encriptados en esta computadora. Ponele una contraseña para que nadie más pueda abrirlo.</p>
+    <div class="field"><label>Tu nombre / Apodo</label><input id="newProfName" placeholder="Ej: Caterina" autofocus></div>
+    <div class="field"><label>Contraseña (mínimo 6 caracteres)</label><input type="password" id="newProfPass" placeholder="••••••••"></div>
+    <div class="field"><label>Repetí la contraseña</label><input type="password" id="newProfPass2" placeholder="••••••••"></div>
+    <div class="field"><label>Pista de contraseña (opcional)</label><input id="newProfHint" placeholder="Ej: nombre de mi mascota + año"><div style="font-size: 11px; color: var(--text-light); margin-top: 4px;">⚠ Cualquiera que vea tu compu puede leer esta pista. Escribí algo que SOLO vos entiendas.</div></div>
+    <div class="alert-item warning" style="margin-bottom: 14px; font-size: 12.5px;"><div>Si perdés la contraseña no podemos recuperar tus datos. Guardala en un gestor como Bitwarden o Google Password Manager.</div></div>
+    <button class="btn btn-primary" style="width: 100%;" onclick="createProfile()">Crear perfil y entrar</button>
+  `;
+  setTimeout(() => document.getElementById('newProfName')?.focus(), 100);
+}
+
+function renderCreateProfile() {
+  document.getElementById('loginContent').innerHTML = `
+    <h2 style="color: var(--azul-profundo); font-size: 20px; margin-bottom: 16px;">Nuevo perfil</h2>
+    <div class="field"><label>Nombre</label><input id="newProfName" placeholder="Ej: María" autofocus></div>
+    <div class="field"><label>Contraseña (mínimo 6 caracteres)</label><input type="password" id="newProfPass" placeholder="••••••••"></div>
+    <div class="field"><label>Repetí la contraseña</label><input type="password" id="newProfPass2" placeholder="••••••••"></div>
+    <div class="field"><label>Pista de contraseña (opcional)</label><input id="newProfHint" placeholder="Ej: nombre de mi mascota + año"><div style="font-size: 11px; color: var(--text-light); margin-top: 4px;">⚠ Escribí algo que SOLO vos entiendas.</div></div>
+    <div class="alert-item warning" style="margin-bottom: 14px; font-size: 12.5px;"><div>No se puede recuperar la contraseña. Guardala bien.</div></div>
+    <button class="btn btn-primary" style="width: 100%;" onclick="createProfile()">Crear perfil</button>
+    <button class="btn" style="width: 100%; margin-top: 8px;" onclick="renderProfilesList()">← Volver</button>
+  `;
+  setTimeout(() => document.getElementById('newProfName')?.focus(), 100);
+}
+
+async function createProfile() {
+  const name = document.getElementById('newProfName').value.trim();
+  const pass = document.getElementById('newProfPass').value;
+  const pass2 = document.getElementById('newProfPass2').value;
+  if (!name) return toast('Ingresá un nombre');
+  if (pass.length < 6) return toast('La contraseña debe tener al menos 6 caracteres');
+  if (pass !== pass2) return toast('Las contraseñas no coinciden');
+  const hint = (document.getElementById('newProfHint')?.value || '').trim();
+  const prof = loadProfiles();
+  const newP = { id: 'p_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), name, hasPassword: true, salt: randomBase64(16), hint, createdAt: new Date().toISOString() };
+  prof.profiles.push(newP);
+  saveProfilesList(prof);
+  currentProfileId = newP.id;
+  encryptionKey = await deriveKey(pass, newP.salt);
+  data = defaultData();
+  data.settings.therapistName = name;
+  await saveData();
+  afterLogin();
+}
+
+function openProfile(profileId) {
+  const prof = loadProfiles().profiles.find(p => p.id === profileId);
+  if (!prof) return;
+  if (!prof.hasPassword) { loadAndEnter(profileId, null); return; }
+  document.getElementById('loginContent').innerHTML = `
+    <h2 style="color: var(--azul-profundo); font-size: 20px; margin-bottom: 8px;">Hola, ${escapeHtml(prof.name)}</h2>
+    <p style="color: var(--text-light); font-size: 13px; margin-bottom: 20px;">Ingresá tu contraseña</p>
+    <div class="field"><label>Contraseña</label><input type="password" id="loginPass" autofocus onkeypress="if(event.key==='Enter')tryLogin('${profileId}')"></div>
+    <button class="btn btn-primary" style="width: 100%;" onclick="tryLogin('${profileId}')">Entrar</button>
+    ${prof.hint ? `<div style="margin-top: 14px; text-align: center;"><a href="#" onclick="document.getElementById('hintBox').style.display='block'; return false;" style="font-size: 12.5px; color: var(--azul-medio);">¿Olvidaste la contraseña? Ver pista</a><div id="hintBox" style="display: none; margin-top: 10px; padding: 12px; background: var(--arena-light); border-radius: 8px; font-size: 13px; color: var(--text);"><strong>Tu pista:</strong> ${escapeHtml(prof.hint)}</div></div>` : ''}
+    <button class="btn" style="width: 100%; margin-top: 8px;" onclick="renderProfilesList()">← Volver</button>
+  `;
+  setTimeout(() => document.getElementById('loginPass')?.focus(), 100);
+}
+
+async function tryLogin(profileId) {
+  const prof = loadProfiles().profiles.find(p => p.id === profileId);
+  const pass = document.getElementById('loginPass').value;
+  if (!pass) return;
+  try {
+    const key = await deriveKey(pass, prof.salt);
+    const raw = localStorage.getItem('theralink_data_' + profileId);
+    if (raw) {
+      const payload = JSON.parse(raw);
+      const decrypted = await decryptJSON(key, payload);
+      migrateData(decrypted);
+      data = decrypted;
+    } else { data = defaultData(); }
+    currentProfileId = profileId;
+    encryptionKey = key;
+    afterLogin();
+  } catch (e) {
+    toast('Contraseña incorrecta');
+    document.getElementById('loginPass').value = '';
+  }
+}
+
+function afterLogin() {
+  hideLogin();
+  if (data.settings.darkMode) document.body.classList.add('dark');
+  else document.body.classList.remove('dark');
+  currentView = 'home';
+  renderSidebar();
+  renderMain();
+  startReminderCheck();
+}
+
+function logout() {
+  if (!confirm('¿Cerrar sesión? Los datos no se pierden.')) return;
+  currentProfileId = null;
+  encryptionKey = null;
+  data = null;
+  stopReminderCheck();
+  showLogin();
+}
+
+function deleteCurrentProfile() {
+  if (!confirm('¿Eliminar este perfil y TODOS sus datos para siempre? No se puede deshacer.')) return;
+  if (!confirm('Última confirmación: ¿Estás 100% segura?')) return;
+  localStorage.removeItem('theralink_data_' + currentProfileId);
+  const prof = loadProfiles();
+  prof.profiles = prof.profiles.filter(p => p.id !== currentProfileId);
+  saveProfilesList(prof);
+  logout();
+}
+
+function renderImportProfile() {
+  document.getElementById('loginContent').innerHTML = `
+    <h2 style="color: var(--azul-profundo); font-size: 20px; margin-bottom: 8px;">Importar perfil</h2>
+    <p style="color: var(--text-light); font-size: 13px; margin-bottom: 16px; line-height: 1.5;">Trajiste un backup encriptado desde otro dispositivo. Elegí el archivo <code>.psioffice</code> y poné la contraseña con la que lo creaste.</p>
+    <div class="field"><label>Archivo de backup</label><input type="file" id="impFile" accept=".psioffice,.theralink,.json"></div>
+    <div class="field"><label>Contraseña del perfil</label><input type="password" id="impPass"></div>
+    <button class="btn btn-primary" style="width: 100%;" onclick="doImportProfile()">Importar y entrar</button>
+    <button class="btn" style="width: 100%; margin-top: 8px;" onclick="renderProfilesList()">← Volver</button>
+  `;
+}
+
+async function doImportProfile() {
+  const file = document.getElementById('impFile').files[0];
+  const pass = document.getElementById('impPass').value;
+  if (!file) return toast('Elegí un archivo');
+  if (!pass) return toast('Poné la contraseña');
+  const txt = await file.text();
+  try {
+    const pkg = JSON.parse(txt);
+    if (!pkg.theralinkBackup && !pkg.psiofficeBackup) return toast('Archivo inválido');
+    const key = await deriveKey(pass, pkg.salt);
+    const decrypted = await decryptJSON(key, pkg.payload);
+    migrateData(decrypted);
+    // create profile
+    const prof = loadProfiles();
+    const newP = { id: 'p_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), name: pkg.profileName || 'Importado', hasPassword: true, salt: pkg.salt, createdAt: new Date().toISOString() };
+    prof.profiles.push(newP);
+    saveProfilesList(prof);
+    currentProfileId = newP.id;
+    encryptionKey = key;
+    data = decrypted;
+    await saveData();
+    afterLogin();
+    toast('✓ Perfil importado');
+  } catch (e) {
+    toast('Error al importar: ¿contraseña incorrecta o archivo dañado?');
+  }
+}
+
+async function exportProfilePackage() {
+  const prof = loadProfiles().profiles.find(p => p.id === currentProfileId);
+  if (!prof) return;
+  const payload = await encryptJSON(encryptionKey, data);
+  const pkg = { psiofficeBackup: true, theralinkBackup: true, version: 2, profileName: prof.name, salt: prof.salt, payload, exportedAt: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(pkg)], { type: 'application/octet-stream' });
+  saveAs(blob, `perfil_${sanitize(prof.name)}_${new Date().toISOString().split('T')[0]}.psioffice`);
+  toast('✓ Perfil exportado (guardalo en Drive o USB para abrirlo en otro dispositivo)');
+}
+
+// ==================== DATA MODEL & STORAGE ====================
+let currentPatientId = null;
+let currentView = 'home';
+let currentTab = 'personal';
+let dashboardChart = null;
+
+async function loadData() {
+  // No longer used at startup — see login flow
+  return data;
+}
+
+function defaultData() {
+  return {
+    settings: {
+      therapistName: '',
+      license: '',
+      currency: '$',
+      isInNetwork: false,
+      teamLeaderName: '',
+      commissionPercent: 0,
+      monthlyGoal: 0,
+      darkMode: false,
+      taxId: '',
+      address: '',
+      vacation: { active: false, from: '', to: '', message: '' },
+      whatsappTemplates: defaultTemplates(),
+      openaiKey: '',
+      aiModel: 'gpt-4o-mini'
+    },
+    patients: [],
+    insurers: [],
+    cierreHistory: [],
+    waitlist: []
+  };
+}
+
+function defaultTemplates() {
+  return [
+    { id: 't1', title: '🔔 Recordatorio de sesión', content: 'Hola {nombre}! Te recuerdo tu sesión del {fecha} a las {hora}. ¡Nos vemos pronto!' },
+    { id: 't2', title: '💰 Recordatorio de pago', content: 'Hola {nombre}! Te paso un recordatorio amigable del pago de la sesión del {fecha} ({monto}). ¡Gracias!' },
+    { id: 't3', title: '📈 Aumento de honorarios', content: 'Hola {nombre}, espero que estés bien. Quería avisarte que a partir del mes próximo voy a actualizar mis honorarios a {monto} por sesión. Esta decisión acompaña el contexto económico y me permite seguir brindándote la atención y disponibilidad que compartimos. Quedo a tu disposición si querés que conversemos sobre esto en la próxima sesión. ¡Gracias por tu confianza!' },
+    { id: 't4', title: '⏰ Cancelación con menos de 24hs', content: 'Hola {nombre}, recibí tu mensaje. Como habíamos acordado al inicio del tratamiento, las cancelaciones con menos de 24hs de anticipación se facturan igual. Si querés reprogramamos para esta misma semana si tengo lugar. ¡Gracias por avisar!' },
+    { id: 't5', title: '👋 Paciente ausente hace tiempo', content: 'Hola {nombre}, ¿cómo estás? Te escribo porque hace un tiempo que no nos encontramos y quería saber cómo venís. Si querés retomar o conversar sobre cómo seguir, avisame y nos coordinamos. Un abrazo.' },
+    { id: 't6', title: '🤝 Bienvenida paciente nuevo', content: 'Hola {nombre}! Qué bueno que decidas iniciar este espacio. Te dejo algunos datos prácticos: la sesión dura 50 minutos, el honorario es de {monto}, el pago se realiza al finalizar. Si tenés que cancelar, te pido que me avises con al menos 24hs. En los próximos días te mando el consentimiento informado para que lo leas. Cualquier cosa quedo por acá.' },
+    { id: 't7', title: '🏖️ Mensaje de vacaciones', content: 'Hola {nombre}! Te aviso que estaré de vacaciones desde el {fecha_inicio} hasta el {fecha_fin}. Retomamos la semana del {fecha_regreso}. Ante una urgencia podés contactarte con {emergencia}. ¡Buenos días para vos también!' },
+    { id: 't8', title: '🔄 Reprogramación de sesión', content: 'Hola {nombre}! Necesito reprogramar nuestra sesión del {fecha}. ¿Te viene bien el {fecha_alt} a las {hora}? Si no, decime qué día te queda bien y buscamos un lugar. ¡Gracias!' }
+  ];
+}
+
+function migrateData(d) {
+  const defaults = defaultData();
+  if (!d.settings) d.settings = defaults.settings;
+  // merge missing settings fields only (don't overwrite existing)
+  for (const k of Object.keys(defaults.settings)) if (d.settings[k] === undefined) d.settings[k] = defaults.settings[k];
+  if (!d.settings.vacation) d.settings.vacation = defaults.settings.vacation;
+  if (!d.settings.whatsappTemplates || d.settings.whatsappTemplates.length === 0) d.settings.whatsappTemplates = defaults.settings.whatsappTemplates;
+  if (!d.patients) d.patients = [];
+  if (!d.insurers) d.insurers = [];
+  if (!d.cierreHistory) d.cierreHistory = [];
+  if (!d.waitlist) d.waitlist = [];
+  for (const p of d.patients) {
+    if (!p.insurance) p.insurance = { provider: '', planNumber: '', copay: 0 };
+    if (!p.insuranceClaims) p.insuranceClaims = [];
+    if (!p.evolutionNotes) p.evolutionNotes = [];
+    if (!p.consent) p.consent = { signed: false, date: '', notes: '' };
+    if (!p.receipts) p.receipts = [];
+    if (!p.goals) p.goals = [];
+    if (!p.network) p.network = [];
+    for (const s of p.sessions || []) {
+      if (s.insurerClaimId === undefined) s.insurerClaimId = null;
+    }
+  }
+}
+
+async function saveData() {
+  if (!currentProfileId || !data) return;
+  try {
+    const payload = encryptionKey ? await encryptJSON(encryptionKey, data) : { plain: true, data };
+    localStorage.setItem('theralink_data_' + currentProfileId, JSON.stringify(payload));
+    showSaveStatus();
+  } catch (e) { console.error('Save error', e); }
+}
+
+function showSaveStatus() {
+  const el = document.getElementById('saveStatus');
+  if (el) { el.classList.add('visible'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('visible'), 1500); }
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('visible');
+  setTimeout(() => t.classList.remove('visible'), 2500);
+}
+
+function uuid() { return 'x'+Math.random().toString(36).slice(2,10)+Date.now().toString(36); }
+function getPatient(id) { return data.patients.find(p => p.id === id); }
+function escapeHtml(s) { return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function money(n) { return data.settings.currency + (n||0).toLocaleString('es-AR'); }
+function formatDate(iso) { if (!iso) return '—'; const d = new Date(iso); if (isNaN(d)) return iso; return d.toLocaleDateString('es-AR', {day:'2-digit',month:'2-digit',year:'numeric'}); }
+function sanitize(s) { return (s||'paciente').replace(/[^a-zA-Z0-9]/g,'_'); }
+
+function createPatient(name) {
+  const p = {
+    id: uuid(), createdAt: new Date().toISOString(),
+    personal: { name: name||'Nuevo paciente', dob: '', gender: '', document: '', phone: '', email: '', address: '', occupation: '', education: '', maritalStatus: '', motiveOfConsultation: '', referredBy: '' },
+    fee: { amount: 0, paymentDay: '', paymentMethod: '' },
+    anamnesis: { personalBg: '', familyBg: '', schoolBg: '', workBg: '', medicalBg: '', psychiatricBg: '', substanceUse: '', currentMedication: '', developmentalHistory: '', significantEvents: '', socialSupport: '', hobbies: '' },
+    sessions: [], evaluations: [], evolutionNotes: [],
+    consent: { signed: false, date: '', notes: '' },
+    receipts: [],
+    insurance: { provider: '', planNumber: '', copay: 0 },
+    insuranceClaims: [],
+    genogram: { nodes: [], edges: [] },
+    goals: [], network: []
+  };
+  data.patients.push(p); saveData(); return p;
+}
+
+// ==================== NAVIGATION ====================
+function showView(view) {
+  currentView = view;
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+  if (view !== 'patient') currentPatientId = null;
+  document.getElementById('exportBtn').style.display = (view === 'patient') ? '' : 'none';
+  renderSidebar();
+  renderMain();
+}
+
+function selectPatient(id) {
+  currentPatientId = id;
+  currentView = 'patient';
+  currentTab = 'personal';
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === 'patients'));
+  document.getElementById('exportBtn').style.display = '';
+  renderSidebar();
+  renderMain();
+}
+
+function renderSidebar() {
+  const wrap = document.getElementById('patientListWrapper');
+  const search = (document.getElementById('searchInput')?.value || '').toLowerCase();
+  const patients = data.patients.filter(p => p.personal.name.toLowerCase().includes(search));
+  wrap.innerHTML = `
+    <div class="nav-section" style="border-bottom: none; padding-bottom: 0;">
+      <div class="nav-section-title">Mis pacientes</div>
+    </div>
+    <div class="search-box"><input id="searchInput" placeholder="🔍 Buscar..." value="${escapeHtml(search)}" oninput="renderSidebar()"></div>
+    <div class="patient-list">
+      ${patients.length === 0 ? '<p style="padding: 20px; color: var(--text-muted); font-size: 12px; text-align: center;">Todavía no hay pacientes</p>' :
+        patients.map(p => {
+          const pending = p.sessions.filter(s => !s.paid && s.amount > 0).length;
+          return `<div class="patient-item ${p.id===currentPatientId?'active':''}" onclick="selectPatient('${p.id}')">
+            <span>${escapeHtml(p.personal.name)}</span>
+            ${pending>0 ? `<span class="badge">${pending}</span>` : ''}
+          </div>`;
+        }).join('')}
+    </div>
+    <button class="new-patient-btn" onclick="newPatientModal()">+ Nuevo paciente</button>
+  `;
+}
+
+function renderMain() {
+  const el = document.getElementById('mainContent');
+  if (currentView === 'home') return renderHome(el);
+  if (currentView === 'calendar') return renderCalendar(el);
+  if (currentView === 'waitlist') return renderWaitlist(el);
+  if (currentView === 'templates') return renderTemplates(el);
+  if (currentView === 'dashboard') return renderDashboard(el);
+  if (currentView === 'cierre') return renderCierre(el);
+  if (currentView === 'honorarios') return renderHonorarios(el);
+  if (currentView === 'obras') return renderObras(el);
+  if (currentView === 'team') return renderTeam(el);
+  if (currentView === 'patients') return renderPatientsList(el);
+  if (currentView === 'patient' && currentPatientId) return renderPatient(el);
+  el.innerHTML = '';
+}
+
+// ==================== AI: Structure clinical notes ====================
+async function structureNotesWithAI(sourceText, context) {
+  if (!data.settings.openaiKey) {
+    toast('Primero cargá tu API key de OpenAI en Ajustes');
+    openSettings();
+    return null;
+  }
+  if (!sourceText || sourceText.trim().length < 10) {
+    toast('Escribí al menos unas líneas de notas crudas primero');
+    return null;
+  }
+  const prompt = `Sos un/a asistente clínico/a para profesionales de la salud mental. Tomás notas crudas de una sesión de psicoterapia (lenguaje coloquial, desordenado, con faltas) y las estructurás en formato clínico profesional, respetando la Ley 26.529 de Argentina. NO inventes información que no esté en el texto original. NO des diagnósticos propios. Mantené el contenido clínico original pero mejorá redacción, ortografía, y organizalo en estas 4 secciones con títulos exactos (en MAYÚSCULAS seguido de dos puntos):
+
+OBSERVACIONES: lo que la persona trajo, cómo se presentó, emergentes principales.
+INTERVENCIONES: qué hiciste vos como terapeuta, técnicas o abordajes aplicados.
+TAREAS / CONSIGNAS: lo acordado para trabajar entre sesiones (si aplica).
+PLAN PRÓXIMA SESIÓN: líneas que quedaron abiertas y hacia dónde vas.
+
+Si alguna sección no aplica, escribí "No aplica". Mantené lenguaje profesional, respetuoso, no patologizante.
+
+NOTAS CRUDAS:
+${sourceText}`;
+
+  showAILoading();
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + data.settings.openaiKey },
+      body: JSON.stringify({ model: data.settings.aiModel || 'gpt-4o-mini', messages: [{ role: 'user', content: prompt }], temperature: 0.3 })
+    });
+    const json = await res.json();
+    if (json.error) { hideAILoading(); toast('Error IA: ' + json.error.message); return null; }
+    const result = json.choices?.[0]?.message?.content || '';
+    hideAILoading();
+    return result;
+  } catch (e) {
+    hideAILoading();
+    toast('Error de conexión con OpenAI: ' + e.message);
+    return null;
+  }
+}
+
+function showAILoading() {
+  const d = document.createElement('div');
+  d.id = 'aiLoadingOverlay';
+  d.style.cssText = 'position:fixed;inset:0;background:rgba(45,62,80,0.6);display:flex;align-items:center;justify-content:center;z-index:3000;';
+  d.innerHTML = `<div style="background:var(--blanco);padding:30px 40px;border-radius:14px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3);"><div style="font-size:32px;animation:spin 1.5s linear infinite;display:inline-block;">✨</div><div style="margin-top:12px;color:var(--azul-profundo);font-weight:600;">Estructurando tus notas...</div><div style="font-size:12px;color:var(--text-light);margin-top:4px;">Puede tardar 5-15 segundos</div></div><style>@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}</style>`;
+  document.body.appendChild(d);
+}
+function hideAILoading() { document.getElementById('aiLoadingOverlay')?.remove(); }
+
+async function aiStructureSessionNotes(sessionId) {
+  const p = getPatient(currentPatientId);
+  const s = p.sessions.find(x => x.id === sessionId); if (!s) return;
+  const raw = [s.notes, s.interventions ? 'Intervenciones: '+s.interventions : '', s.homework ? 'Tareas: '+s.homework : ''].filter(Boolean).join('\n\n');
+  const result = await structureNotesWithAI(raw, 'session');
+  if (!result) return;
+  showStructuredResultModal(result, (parsed) => {
+    s.notes = parsed.observaciones || s.notes;
+    s.interventions = parsed.intervenciones || s.interventions;
+    s.homework = parsed.tareas || s.homework;
+    saveData(); renderTabContent();
+  });
+}
+
+async function aiStructureEvolutionNote(noteId) {
+  const p = getPatient(currentPatientId);
+  const n = p.evolutionNotes.find(x => x.id === noteId); if (!n) return;
+  const raw = [n.motive ? 'Motivo: '+n.motive : '', n.content, n.interventions ? 'Intervenciones: '+n.interventions : '', n.plan ? 'Plan: '+n.plan : ''].filter(Boolean).join('\n\n');
+  const result = await structureNotesWithAI(raw, 'evolution');
+  if (!result) return;
+  showStructuredResultModal(result, (parsed) => {
+    n.content = parsed.observaciones || n.content;
+    n.interventions = parsed.intervenciones || n.interventions;
+    n.plan = parsed.plan || n.plan;
+    saveData(); renderTabContent();
+  });
+}
+
+function parseStructuredResult(text) {
+  const sections = { observaciones: '', intervenciones: '', tareas: '', plan: '' };
+  const regex = /(OBSERVACIONES|INTERVENCIONES|TAREAS[^:]*|PLAN[^:]*):\s*([\s\S]*?)(?=\n(?:OBSERVACIONES|INTERVENCIONES|TAREAS|PLAN):|$)/gi;
+  let m;
+  while ((m = regex.exec(text)) !== null) {
+    const key = m[1].toUpperCase();
+    const content = m[2].trim();
+    if (key.startsWith('OBSERV')) sections.observaciones = content;
+    else if (key.startsWith('INTERV')) sections.intervenciones = content;
+    else if (key.startsWith('TAREAS')) sections.tareas = content;
+    else if (key.startsWith('PLAN')) sections.plan = content;
+  }
+  return sections;
+}
+
+function showStructuredResultModal(fullText, applyFn) {
+  const parsed = parseStructuredResult(fullText);
+  openModal(`
+    <h2>✨ Resultado estructurado por IA</h2>
+    <p style="color: var(--text-light); font-size: 13px; margin-bottom: 14px;">Revisá y editá antes de reemplazar tus notas originales. La IA puede equivocarse o malinterpretar.</p>
+    <div class="field"><label>OBSERVACIONES</label><textarea id="ai_obs" rows="4">${escapeHtml(parsed.observaciones)}</textarea></div>
+    <div class="field"><label>INTERVENCIONES</label><textarea id="ai_int" rows="3">${escapeHtml(parsed.intervenciones)}</textarea></div>
+    <div class="field"><label>TAREAS / CONSIGNAS</label><textarea id="ai_tar" rows="2">${escapeHtml(parsed.tareas)}</textarea></div>
+    <div class="field"><label>PLAN PRÓXIMA SESIÓN</label><textarea id="ai_pla" rows="2">${escapeHtml(parsed.plan)}</textarea></div>
+    <div style="background: var(--arena-light); padding: 10px; border-radius: 8px; font-size: 11.5px; color: var(--text-light); margin-bottom: 12px;">⚠ Al reemplazar, perdés el texto crudo original. Si querés conservarlo, copiálo antes.</div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancelar</button>
+      <button class="btn" onclick="copyAIResult()">📋 Copiar todo</button>
+      <button class="btn btn-primary" onclick="confirmApplyAI()">✓ Reemplazar notas</button>
+    </div>
+  `);
+  window._aiApplyFn = applyFn;
+}
+
+function copyAIResult() {
+  const text = `OBSERVACIONES:\n${document.getElementById('ai_obs').value}\n\nINTERVENCIONES:\n${document.getElementById('ai_int').value}\n\nTAREAS:\n${document.getElementById('ai_tar').value}\n\nPLAN:\n${document.getElementById('ai_pla').value}`;
+  navigator.clipboard.writeText(text).then(() => toast('✓ Copiado al portapapeles'));
+}
+
+function confirmApplyAI() {
+  const parsed = {
+    observaciones: document.getElementById('ai_obs').value,
+    intervenciones: document.getElementById('ai_int').value,
+    tareas: document.getElementById('ai_tar').value,
+    plan: document.getElementById('ai_pla').value
+  };
+  window._aiApplyFn?.(parsed);
+  closeModal();
+  toast('✓ Notas estructuradas aplicadas');
+}
+
+// ==================== CALENDAR ====================
+let calendarMonth = new Date();
+function renderCalendar(el) {
+  const now = calendarMonth;
+  const year = now.getFullYear(); const month = now.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month+1, 0);
+  const startWeekday = (firstDay.getDay() + 6) % 7; // Monday=0
+  const daysInMonth = lastDay.getDate();
+  const monthName = now.toLocaleDateString('es-AR', {month: 'long', year: 'numeric'});
+
+  // group sessions by date
+  const byDate = {};
+  for (const p of data.patients) for (const s of p.sessions) {
+    if (!s.date) continue;
+    (byDate[s.date] = byDate[s.date] || []).push({...s, patientName: p.personal.name, patientId: p.id, patientPhone: p.personal.phone});
+  }
+  const today = new Date().toISOString().split('T')[0];
+
+  el.innerHTML = `
+    <div class="tab-content">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <div>
+          <h1 style="color: var(--azul-profundo); font-size: 36px; font-weight: 400; text-transform: capitalize;">${monthName}</h1>
+          <p style="color: var(--text-light);">Agenda completa de tus sesiones</p>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button class="btn" onclick="changeCalendarMonth(-1)">← Anterior</button>
+          <button class="btn" onclick="calendarMonth = new Date(); renderMain();">Hoy</button>
+          <button class="btn" onclick="changeCalendarMonth(1)">Siguiente →</button>
+          <button class="btn btn-primary" onclick="exportMonthICS()">📥 Descargar al calendario (.ics)</button>
+        </div>
+      </div>
+
+      <div class="card" style="padding: 0; overflow: hidden;">
+        <div style="display: grid; grid-template-columns: repeat(7, 1fr); background: var(--azul-profundo); color: var(--arena);">
+          ${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(d => `<div style="padding: 10px; text-align: center; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">${d}</div>`).join('')}
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(7, 1fr); background: var(--border); gap: 1px;">
+          ${Array(startWeekday).fill(0).map(()=>'<div style="background: var(--arena-light); min-height: 110px;"></div>').join('')}
+          ${Array.from({length: daysInMonth}, (_, i) => {
+            const day = i+1;
+            const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+            const sess = (byDate[dateStr]||[]).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+            const isToday = dateStr === today;
+            return `<div style="background: var(--blanco); min-height: 110px; padding: 6px; position: relative; ${isToday?'background: var(--arena-light); outline: 2px solid var(--azul-medio); outline-offset: -2px;':''}">
+              <div style="font-size: 13px; font-weight: 600; color: ${isToday?'var(--azul-profundo)':'var(--text)'}; margin-bottom: 4px;">${day}</div>
+              ${sess.slice(0,4).map(s => `<div onclick="selectPatient('${s.patientId}'); setTimeout(()=>selectTab('sessions'), 100);" style="font-size: 11px; background: var(--azul-claro); color: white; padding: 2px 5px; border-radius: 4px; margin-bottom: 2px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(s.patientName)} - ${s.time||''}">${s.time?s.time+' ':''}${escapeHtml(s.patientName.split(' ')[0])}</div>`).join('')}
+              ${sess.length > 4 ? `<div style="font-size: 10px; color: var(--text-light);">+${sess.length-4} más</div>` : ''}
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 20px;">
+        <h3>Próximas sesiones (próximos 7 días)</h3>
+        ${(function(){
+          const upcoming = getUpcomingSessions();
+          if (upcoming.length === 0) return '<p style="color: var(--text-light);">No hay sesiones agendadas.</p>';
+          return upcoming.map(u => {
+            const p = getPatient(u.patientId);
+            return `<div class="alert-item info">
+              <div><strong>${escapeHtml(u.patientName)}</strong> · ${formatDate(u.date)}${u.time?' a las '+u.time:''}</div>
+              <div style="display: flex; gap: 6px;">
+                <button class="btn" onclick="downloadSessionICS('${u.patientId}','${u.sessionId}')">📥 .ics</button>
+                ${p.personal.phone ? `<button class="btn btn-secondary" onclick="sendWhatsAppReminder('${u.patientId}','${u.sessionId}')">💬 WhatsApp</button>` : ''}
+                <button class="btn" onclick="selectPatient('${u.patientId}');setTimeout(()=>selectTab('sessions'),50)">Ver</button>
+              </div>
+            </div>`;
+          }).join('');
+        })()}
+      </div>
+
+      <div class="card" style="background: var(--arena-light);">
+        <h4>💡 Cómo tener recordatorios en tu celular</h4>
+        <p style="font-size: 13.5px; line-height: 1.7; color: var(--text);">
+          <strong>Opción 1 — Nativa del teléfono:</strong> apretá "📥 Descargar al calendario" en cualquier sesión. Se descarga un archivo <code>.ics</code>. Abrilo con Google Calendar o Apple Calendar y queda agregado con alarma. Esta es la mejor opción si querés recibir alertas incluso con PsiOffice cerrado.<br><br>
+          <strong>Opción 2 — Del navegador:</strong> <button class="btn btn-primary" onclick="requestNotifPermission()" style="padding: 4px 10px; margin: 0 4px;">Activar notificaciones</button>. Con la app abierta en la compu, te avisamos 15 min antes de cada sesión.
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+function changeCalendarMonth(delta) {
+  calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth()+delta, 1);
+  renderMain();
+}
+
+// ==================== .ICS EXPORT (Google/Apple Calendar) ====================
+function buildICSEvent(session, patientName) {
+  const date = session.date; const time = session.time || '00:00';
+  const start = new Date(date + 'T' + time + ':00');
+  const end = new Date(start.getTime() + (session.duration||50)*60000);
+  const fmt = (d) => d.toISOString().replace(/[-:]/g,'').split('.')[0] + 'Z';
+  const uid = session.id + '@psioffice';
+  return [
+    'BEGIN:VEVENT',
+    'UID:' + uid,
+    'DTSTAMP:' + fmt(new Date()),
+    'DTSTART:' + fmt(start),
+    'DTEND:' + fmt(end),
+    'SUMMARY:Sesión con ' + patientName,
+    'DESCRIPTION:PsiOffice - ' + (session.notes || '').replace(/\n/g,'\\n').slice(0,200),
+    'BEGIN:VALARM',
+    'TRIGGER:-PT15M',
+    'ACTION:DISPLAY',
+    'DESCRIPTION:Próxima sesión en 15 min',
+    'END:VALARM',
+    'END:VEVENT'
+  ].join('\r\n');
+}
+
+function wrapICS(events) {
+  return 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//PsiOffice//ES\r\nCALSCALE:GREGORIAN\r\n' + events.join('\r\n') + '\r\nEND:VCALENDAR';
+}
+
+function downloadSessionICS(pid, sid) {
+  const p = getPatient(pid); const s = p.sessions.find(x=>x.id===sid);
+  if (!s) return;
+  const ics = wrapICS([buildICSEvent(s, p.personal.name)]);
+  const blob = new Blob([ics], { type: 'text/calendar' });
+  saveAs(blob, `sesion_${sanitize(p.personal.name)}_${s.date}.ics`);
+  toast('✓ Abrilo con Google/Apple Calendar');
+}
+
+function exportMonthICS() {
+  const year = calendarMonth.getFullYear(); const month = calendarMonth.getMonth();
+  const events = [];
+  for (const p of data.patients) for (const s of p.sessions) {
+    if (!s.date) continue;
+    const d = new Date(s.date);
+    if (d.getFullYear() === year && d.getMonth() === month) events.push(buildICSEvent(s, p.personal.name));
+  }
+  if (events.length === 0) { toast('No hay sesiones este mes para exportar'); return; }
+  const ics = wrapICS(events);
+  const blob = new Blob([ics], { type: 'text/calendar' });
+  saveAs(blob, `agenda_psioffice_${year}_${String(month+1).padStart(2,'0')}.ics`);
+  toast('✓ Abrilo con Google/Apple Calendar');
+}
+
+// ==================== BROWSER NOTIFICATIONS ====================
+let reminderInterval = null;
+let notifiedSessions = new Set();
+
+function requestNotifPermission() {
+  if (!('Notification' in window)) return toast('Tu navegador no soporta notificaciones');
+  Notification.requestPermission().then(perm => {
+    if (perm === 'granted') toast('✓ Notificaciones activadas');
+    else toast('No concediste permiso');
+  });
+}
+
+function startReminderCheck() {
+  stopReminderCheck();
+  reminderInterval = setInterval(checkUpcomingReminders, 60000);
+  checkUpcomingReminders();
+}
+function stopReminderCheck() { if (reminderInterval) { clearInterval(reminderInterval); reminderInterval = null; } }
+
+function checkUpcomingReminders() {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (!data) return;
+  const now = new Date();
+  for (const p of data.patients) for (const s of p.sessions) {
+    if (!s.date || !s.time || notifiedSessions.has(s.id)) continue;
+    const sessTime = new Date(s.date + 'T' + s.time + ':00');
+    const diffMin = (sessTime - now) / 60000;
+    if (diffMin > 0 && diffMin <= 15) {
+      new Notification('Sesión en ' + Math.round(diffMin) + ' minutos', { body: `${p.personal.name} · ${s.time}`, icon: '' });
+      notifiedSessions.add(s.id);
+    }
+  }
+}
+
+// ==================== HOME (institucional) ====================
+function renderHome(el) {
+  const name = (data.settings.therapistName||'').split(' ')[0] || '';
+  const hasData = data.patients.length > 0;
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Buen día' : hour < 19 ? 'Buenas tardes' : 'Buenas noches';
+  const vac = data.settings.vacation;
+  const vacBanner = (vac?.active) ? `<div style="background: var(--warning); color: white; padding: 10px 20px; text-align: center; font-weight: 600;">🏖️ Modo vacaciones activo${vac.from?' · del '+formatDate(vac.from):''}${vac.to?' al '+formatDate(vac.to):''}</div>` : '';
+  el.innerHTML = `
+    ${vacBanner}
+    <div style="background: linear-gradient(135deg, var(--azul-profundo) 0%, var(--azul-medio) 100%); color: var(--arena); padding: 60px 40px 50px; position: relative; overflow: hidden;">
+      <svg style="position: absolute; right: -40px; bottom: -40px; opacity: 0.08; width: 300px;" viewBox="0 0 200 200">
+        <path d="M20 100 Q 50 60, 80 100 T 140 100 T 200 100" stroke="#eee8dc" stroke-width="3" fill="none"/>
+        <path d="M20 130 Q 50 90, 80 130 T 140 130 T 200 130" stroke="#eee8dc" stroke-width="3" fill="none"/>
+        <path d="M20 160 Q 50 120, 80 160 T 140 160 T 200 160" stroke="#eee8dc" stroke-width="3" fill="none"/>
+      </svg>
+      <div style="max-width: 800px; position: relative;">
+        <div style="font-size: 13px; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 8px;">${greeting}${name?', '+escapeHtml(name):''}</div>
+        <h1 style="font-size: 52px; font-weight: 400; margin-bottom: 16px; line-height: 1.1;">PsiOffice</h1>
+        <p style="font-size: 18px; font-family: var(--font-serif); font-style: italic; opacity: 0.9; line-height: 1.5; max-width: 600px;">El espacio donde tu consultorio clínico queda en orden, para que puedas estar presente en la sesión.</p>
+      </div>
+    </div>
+
+    <div class="tab-content" style="max-width: 1100px;">
+      <div class="grid-2" style="margin-bottom: 24px;">
+        <div class="card">
+          <h3>Nuestra misión</h3>
+          <p style="line-height: 1.7; color: var(--text);">Acompañar a profesionales de la salud mental con una herramienta clínica <strong>clara, prolija y respetuosa</strong> de la práctica. Que la gestión administrativa no te robe tiempo ni energía de lo que realmente importa: el vínculo terapéutico.</p>
+        </div>
+        <div class="card">
+          <h3>Nuestra visión</h3>
+          <p style="line-height: 1.7; color: var(--text);">Un consultorio ordenado es un consultorio sostenible. Creemos en una práctica <strong>profesional, documentada según ley, y económicamente viable</strong>, donde puedas crecer sin burnout.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>¿Qué podés hacer acá?</h3>
+        <div class="grid-3" style="gap: 20px;">
+          <div><strong style="color: var(--azul-profundo); display: block; margin-bottom: 4px;">📋 Historia clínica</strong><div style="font-size: 13px; color: var(--text-light); line-height: 1.5;">Datos, motivo, anamnesis, notas de evolución según Ley 26.529, consentimiento informado y genograma.</div></div>
+          <div><strong style="color: var(--azul-profundo); display: block; margin-bottom: 4px;">💰 Finanzas</strong><div style="font-size: 13px; color: var(--text-light); line-height: 1.5;">Calculadora de honorarios, pagos pendientes, obras sociales, recibos en PDF, objetivo mensual.</div></div>
+          <div><strong style="color: var(--azul-profundo); display: block; margin-bottom: 4px;">📅 Agenda y cierre</strong><div style="font-size: 13px; color: var(--text-light); line-height: 1.5;">Sesiones, recordatorios por WhatsApp, cierre semanal guiado, trabajo en red con comisiones.</div></div>
+        </div>
+      </div>
+
+      <div class="card" style="background: var(--arena-light); border-color: var(--border);">
+        <h3>${hasData ? 'Accesos rápidos' : 'Empezá acá'}</h3>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          ${hasData ? `
+            <button class="btn btn-primary" onclick="showView('dashboard')">◎ Ver tablero del mes</button>
+            <button class="btn" onclick="showView('cierre')">◐ Hacer cierre semanal</button>
+            <button class="btn" onclick="showView('patients')">◉ Mis pacientes (${data.patients.length})</button>
+            <button class="btn" onclick="newPatientModal()">+ Nuevo paciente</button>
+          ` : `
+            <button class="btn btn-primary" onclick="openSettings()">⚙ Configurar mis datos profesionales</button>
+            <button class="btn" onclick="newPatientModal()">+ Agregar mi primer paciente</button>
+            <button class="btn" onclick="showView('honorarios')">◈ Calcular mis honorarios</button>
+            <button class="btn" onclick="showView('obras')">◇ Cargar obras sociales</button>
+          `}
+        </div>
+      </div>
+
+      <div class="card">
+        <h4>Pensado para psicólogos clínicos</h4>
+        <p style="line-height: 1.7; color: var(--text-light); font-size: 13.5px;">PsiOffice guarda todo <strong>en tu computadora</strong> (sin servidores externos) y funciona sin internet. Hacé backups periódicos desde el botón 💾 del header. Compatible con Google Drive para exportar historias clínicas, planillas y genogramas listos para subir.</p>
+      </div>
+
+      <div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 12px;">
+        PsiOffice · Gestión clínica para profesionales de la salud mental
+      </div>
+    </div>
+  `;
+}
+
+// ==================== DASHBOARD (tablero del mes) ====================
+function renderDashboard(el) {
+  const now = new Date();
+  const curKey = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+  const monthStats = computeMonthStats(curKey);
+  const goal = data.settings.monthlyGoal || 0;
+  const pct = goal > 0 ? Math.min(100, (monthStats.cobrado / goal) * 100) : 0;
+  const upcoming = getUpcomingSessions();
+  const pendingPayments = getPendingPayments();
+  const pendingCommissions = getPendingCommissions();
+  const last6 = getLast6MonthsStats();
+  const monthName = now.toLocaleDateString('es-AR', {month: 'long', year: 'numeric'});
+
+  el.innerHTML = `
+    <div class="tab-content">
+      <h1 style="color: var(--azul-profundo); font-size: 36px; margin-bottom: 4px; text-transform: capitalize; font-weight: 400;">Tablero del mes</h1>
+      <p style="color: var(--text-light); margin-bottom: 24px; text-transform: capitalize;">${monthName}</p>
+
+      <div class="grid-4" style="margin-bottom: 20px;">
+        <div class="stat-card highlight">
+          <div class="stat-label" style="opacity: 0.8;">Cobrado</div>
+          <div class="stat-value" style="color: var(--arena);">${money(monthStats.cobrado)}</div>
+          ${goal > 0 ? `
+            <div class="stat-sub" style="color: var(--arena); opacity: 0.8;">${pct.toFixed(0)}% del objetivo (${money(goal)})</div>
+            <div class="progress-bar" style="background: rgba(238,232,220,0.2);"><div class="progress-fill" style="width: ${pct}%;"></div></div>
+          ` : '<div class="stat-sub" style="color: var(--arena); opacity: 0.6;">Definí tu objetivo mensual en Ajustes</div>'}
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Pendiente</div>
+          <div class="stat-value" style="color: var(--warning);">${money(monthStats.pendiente)}</div>
+          <div class="stat-sub">${monthStats.sessionsPending} sesiones sin cobrar</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Proyectado</div>
+          <div class="stat-value">${money(monthStats.cobrado + monthStats.pendiente)}</div>
+          <div class="stat-sub">Total del mes si cobrás todo</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Sesiones del mes</div>
+          <div class="stat-value">${monthStats.sessionsTotal}</div>
+          <div class="stat-sub">${monthStats.sessionsDone} realizadas · ${monthStats.sessionsUpcoming} por venir</div>
+        </div>
+      </div>
+
+      ${(function(){
+        const hasChartData = last6.some(m => (m.cobrado||0) > 0 || (m.pendiente||0) > 0);
+        return `<div class="grid-2" style="margin-bottom: 20px;">
+          ${hasChartData ? `<div class="card">
+            <h3>Evolución de últimos 6 meses</h3>
+            <canvas id="monthsChart" height="200"></canvas>
+          </div>` : `<div class="card" style="display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; min-height: 240px; background: var(--arena-light);">
+            <div style="font-size: 36px; opacity: 0.4; margin-bottom: 8px;">📊</div>
+            <h4>Evolución de últimos 6 meses</h4>
+            <p style="color: var(--text-light); font-size: 13px; max-width: 280px; margin-top: 8px;">El gráfico va a aparecer acá cuando registres sesiones con pagos cobrados o pendientes.</p>
+          </div>`}
+          <div class="card">
+            <h3>Resumen rápido</h3>
+            <div style="line-height: 2;">
+              <div><span class="pill">${data.patients.length}</span> pacientes activos</div>
+              <div><span class="pill">${upcoming.length}</span> próximas sesiones (7 días)</div>
+              <div><span class="pill">${pendingPayments.length}</span> pagos pendientes totales</div>
+              ${data.settings.isInNetwork ? `<div><span class="pill">${pendingCommissions.length}</span> comisiones por transferir</div>` : ''}
+            </div>
+            <div class="divider"></div>
+            <button class="btn btn-primary" onclick="showView('cierre')">→ Hacer cierre semanal</button>
+          </div>
+        </div>`;
+      })()}
+
+      <div class="card">
+        <h3>📅 Próximas sesiones (7 días)</h3>
+        ${upcoming.length === 0 ? '<p style="color: var(--text-light);">No hay sesiones agendadas en los próximos 7 días.</p>' :
+          upcoming.map(u => `<div class="alert-item info">
+            <div><strong>${escapeHtml(u.patientName)}</strong> · ${formatDate(u.date)}${u.time?' a las '+u.time:''}</div>
+            <div style="display: flex; gap: 6px;">
+              ${getPatient(u.patientId).personal.phone ? `<button class="btn btn-secondary" onclick="sendWhatsAppReminder('${u.patientId}','${u.sessionId}')">💬 WhatsApp</button>` : ''}
+              <button class="btn" onclick="selectPatient('${u.patientId}');setTimeout(()=>selectTab('sessions'),50)">Ver</button>
+            </div>
+          </div>`).join('')}
+      </div>
+
+      <div class="card">
+        <h3>💰 Pagos pendientes</h3>
+        ${pendingPayments.length === 0 ? '<p style="color: var(--text-light);">Todos los pagos están al día. ✓</p>' :
+          pendingPayments.slice(0,8).map(p => `<div class="alert-item warning">
+            <div><strong>${escapeHtml(p.patientName)}</strong> — ${money(p.amount)} · sesión del ${formatDate(p.date)}</div>
+            <button class="btn btn-success" onclick="markPaid('${p.patientId}','${p.sessionId}')">✓ Marcar pagada</button>
+          </div>`).join('') + (pendingPayments.length > 8 ? `<p style="color: var(--text-light); margin-top: 8px; font-size: 12px;">+ ${pendingPayments.length - 8} más...</p>` : '')}
+      </div>
+
+      ${(function(){
+        // Alert: patients absent for >21 days
+        const now = new Date();
+        const absent = data.patients.filter(p => {
+          const lastSession = p.sessions.filter(s=>s.date && new Date(s.date) < now).sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+          const nextSession = p.sessions.filter(s=>s.date && new Date(s.date) >= now)[0];
+          if (nextSession) return false;
+          if (!lastSession) return false;
+          const days = (now - new Date(lastSession.date)) / (1000*60*60*24);
+          return days > 21 && days < 180;
+        }).map(p => {
+          const lastSession = p.sessions.filter(s=>s.date).sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+          const days = Math.round((now - new Date(lastSession.date)) / (1000*60*60*24));
+          return {...p, lastDays: days};
+        }).sort((a,b)=>b.lastDays-a.lastDays);
+        if (absent.length === 0) return '';
+        return `<div class="card">
+          <h3>🚨 Pacientes ausentes hace tiempo</h3>
+          <p style="color: var(--text-light); font-size: 13px; margin-bottom: 10px;">Riesgo de abandono. Considerá mandar un mensaje de reconexión:</p>
+          ${absent.slice(0,6).map(p => `<div class="alert-item warning">
+            <div><strong>${escapeHtml(p.personal.name)}</strong> · última sesión hace ${p.lastDays} días</div>
+            <div style="display: flex; gap: 6px;">
+              ${p.personal.phone ? `<button class="btn btn-secondary" onclick="useReconnectTemplate('${p.id}')">💬 Mensaje reconexión</button>` : ''}
+              <button class="btn" onclick="selectPatient('${p.id}')">Ver ficha</button>
+            </div>
+          </div>`).join('')}
+        </div>`;
+      })()}
+      ${data.settings.isInNetwork && pendingCommissions.length > 0 ? `
+      <div class="card">
+        <h3>🤝 Comisiones por transferir a ${escapeHtml(data.settings.teamLeaderName||'jefa de equipo')}</h3>
+        ${pendingCommissions.map(c => `<div class="alert-item danger">
+          <div><strong>${escapeHtml(c.patientName)}</strong> — ${money(c.commission.toFixed(2))} (${data.settings.commissionPercent}% de ${money(c.amount)}) · ${formatDate(c.date)}</div>
+          <button class="btn btn-success" onclick="markCommissionPaid('${c.patientId}','${c.sessionId}')">✓ Transferida</button>
+        </div>`).join('')}
+      </div>` : ''}
+    </div>
+  `;
+  const hasChartData = last6.some(m => (m.cobrado||0) > 0 || (m.pendiente||0) > 0);
+  if (hasChartData) setTimeout(() => renderMonthsChart(last6), 50);
+}
+
+function renderMonthsChart(stats) {
+  const ctx = document.getElementById('monthsChart');
+  if (!ctx) return;
+  if (dashboardChart) dashboardChart.destroy();
+  dashboardChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: stats.map(s => s.label),
+      datasets: [
+        { label: 'Cobrado', data: stats.map(s => s.cobrado), backgroundColor: '#25627c', borderRadius: 6 },
+        { label: 'Pendiente', data: stats.map(s => s.pendiente), backgroundColor: '#c89b3c', borderRadius: 6 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { font: { family: 'Manrope' } } } },
+      scales: { y: { ticks: { font: { family: 'Manrope' } } }, x: { ticks: { font: { family: 'Manrope' } } } }
+    }
+  });
+}
+
+function computeMonthStats(monthKey) {
+  const stats = { cobrado: 0, pendiente: 0, sessionsTotal: 0, sessionsDone: 0, sessionsUpcoming: 0, sessionsPending: 0 };
+  const now = new Date();
+  for (const p of data.patients) {
+    for (const s of p.sessions) {
+      if (!s.date) continue;
+      const d = new Date(s.date);
+      const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+      if (key !== monthKey) continue;
+      stats.sessionsTotal++;
+      if (d < now) stats.sessionsDone++; else stats.sessionsUpcoming++;
+      if (s.paid) stats.cobrado += s.amount || 0;
+      else { stats.pendiente += s.amount || 0; if ((s.amount||0)>0) stats.sessionsPending++; }
+    }
+  }
+  return stats;
+}
+
+function getLast6MonthsStats() {
+  const now = new Date();
+  const stats = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    const s = computeMonthStats(key);
+    stats.push({ label: d.toLocaleDateString('es-AR', {month:'short'}), ...s });
+  }
+  return stats;
+}
+
+function getUpcomingSessions() {
+  const now = new Date(); const week = new Date(now); week.setDate(week.getDate()+7);
+  const list = [];
+  for (const p of data.patients) {
+    for (const s of p.sessions) {
+      if (!s.date) continue;
+      const d = new Date(s.date + (s.time? 'T'+s.time : 'T23:59'));
+      if (d >= now && d <= week) list.push({patientId: p.id, sessionId: s.id, patientName: p.personal.name, date: s.date, time: s.time});
+    }
+  }
+  return list.sort((a,b)=>new Date(a.date+'T'+(a.time||'00:00'))-new Date(b.date+'T'+(b.time||'00:00')));
+}
+
+function getPendingPayments() {
+  const list = [];
+  for (const p of data.patients) for (const s of p.sessions)
+    if (!s.paid && (s.amount||0) > 0) list.push({patientId: p.id, sessionId: s.id, patientName: p.personal.name, amount: s.amount, date: s.date});
+  return list.sort((a,b)=>new Date(a.date)-new Date(b.date));
+}
+
+function getPendingCommissions() {
+  if (!data.settings.isInNetwork) return [];
+  const pct = parseFloat(data.settings.commissionPercent) / 100;
+  const list = [];
+  for (const p of data.patients) for (const s of p.sessions)
+    if (s.paid && !s.commissionPaid && (s.amount||0) > 0)
+      list.push({patientId: p.id, sessionId: s.id, patientName: p.personal.name, amount: s.amount, commission: s.amount * pct, date: s.date});
+  return list;
+}
+
+function markPaid(pid, sid) {
+  const p = getPatient(pid); if (!p) return;
+  const s = p.sessions.find(x => x.id === sid); if (!s) return;
+  s.paid = true; saveData(); renderMain(); renderSidebar();
+}
+function markCommissionPaid(pid, sid) {
+  const p = getPatient(pid); if (!p) return;
+  const s = p.sessions.find(x => x.id === sid); if (!s) return;
+  s.commissionPaid = true; saveData(); renderMain();
+}
+
+// ==================== CIERRE SEMANAL ====================
+function renderCierre(el) {
+  const now = new Date();
+  const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay() + 1);
+  const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate() + 6);
+  const inWeek = (dateStr) => { if (!dateStr) return false; const d = new Date(dateStr); return d >= weekStart && d <= weekEnd; };
+
+  const weekSessions = [];
+  for (const p of data.patients) for (const s of p.sessions) if (inWeek(s.date))
+    weekSessions.push({...s, patientName: p.personal.name, patientId: p.id});
+
+  const cobrado = weekSessions.filter(s=>s.paid).reduce((sum,s)=>sum+(s.amount||0),0);
+  const pendiente = weekSessions.filter(s=>!s.paid).reduce((sum,s)=>sum+(s.amount||0),0);
+
+  const allPending = getPendingPayments();
+  const oldPending = allPending.filter(p => { const d = new Date(p.date); const days = (now - d) / (1000*60*60*24); return days > 7; });
+
+  el.innerHTML = `
+    <div class="tab-content">
+      <h1 style="color: var(--azul-profundo); font-size: 36px; margin-bottom: 4px; font-weight: 400;">Cierre semanal</h1>
+      <p style="color: var(--text-light); margin-bottom: 24px;">Semana del ${formatDate(weekStart.toISOString())} al ${formatDate(weekEnd.toISOString())} · 10 min para dejar todo ordenado</p>
+
+      <div class="grid-3" style="margin-bottom: 20px;">
+        <div class="stat-card"><div class="stat-label">Sesiones de la semana</div><div class="stat-value">${weekSessions.length}</div></div>
+        <div class="stat-card"><div class="stat-label">Cobrado</div><div class="stat-value" style="color: var(--success);">${money(cobrado)}</div></div>
+        <div class="stat-card"><div class="stat-label">Pendiente de la semana</div><div class="stat-value" style="color: var(--warning);">${money(pendiente)}</div></div>
+      </div>
+
+      <div class="card">
+        <h3>1. Revisá las sesiones de la semana</h3>
+        <p style="color: var(--text-light); margin-bottom: 12px; font-size: 13px;">Marcá como pagadas las que ya te pagaron:</p>
+        ${weekSessions.length === 0 ? '<p style="color: var(--text-light);">No hubo sesiones esta semana.</p>' :
+          weekSessions.map(s => `<div class="alert-item ${s.paid?'success':'warning'}">
+            <div><strong>${escapeHtml(s.patientName)}</strong> · ${formatDate(s.date)} ${s.time||''} · ${money(s.amount||0)}</div>
+            <label class="checkbox-row"><input type="checkbox" ${s.paid?'checked':''} onchange="updateSessionById('${s.patientId}','${s.id}','paid',this.checked); renderMain();"> ${s.paid?'Pagada ✓':'Marcar pagada'}</label>
+          </div>`).join('')}
+      </div>
+
+      <div class="card">
+        <h3>2. Pagos atrasados (más de 7 días)</h3>
+        ${oldPending.length === 0 ? '<p style="color: var(--success);">No hay pagos atrasados. ✓</p>' :
+          oldPending.map(p => `<div class="alert-item danger">
+            <div><strong>${escapeHtml(p.patientName)}</strong> — ${money(p.amount)} · del ${formatDate(p.date)}</div>
+            <div style="display: flex; gap: 6px;">
+              ${getPatient(p.patientId).personal.phone ? `<button class="btn btn-secondary" onclick="sendPaymentReminder('${p.patientId}','${p.sessionId}')">💬 Recordar</button>` : ''}
+              <button class="btn btn-success" onclick="markPaid('${p.patientId}','${p.sessionId}')">✓</button>
+            </div>
+          </div>`).join('')}
+      </div>
+
+      <div class="card">
+        <h3>3. Checklist de cierre</h3>
+        <div class="checklist-item"><input type="checkbox" id="cl1"><label for="cl1">Pasé las notas de todas las sesiones de la semana</label></div>
+        <div class="checklist-item"><input type="checkbox" id="cl2"><label for="cl2">Marqué los pagos recibidos</label></div>
+        <div class="checklist-item"><input type="checkbox" id="cl3"><label for="cl3">Envié los recordatorios para la semana que viene</label></div>
+        <div class="checklist-item"><input type="checkbox" id="cl4"><label for="cl4">Revisé las comisiones pendientes (si aplica)</label></div>
+        <div class="checklist-item"><input type="checkbox" id="cl5"><label for="cl5">Actualicé mi agenda personal con los turnos confirmados</label></div>
+        <div class="checklist-item"><input type="checkbox" id="cl6"><label for="cl6">Dediqué 5 min a reflexionar: ¿qué funcionó esta semana? ¿Qué puedo mejorar?</label></div>
+
+        <div class="field" style="margin-top: 16px;"><label>Notas personales de la semana</label><textarea id="cierreNotes" rows="3" placeholder="Qué funcionó, qué no, decisiones para la semana que viene..."></textarea></div>
+        <button class="btn btn-primary" onclick="saveCierre()">✓ Guardar cierre</button>
+      </div>
+
+      ${data.cierreHistory.length > 0 ? `
+        <div class="card">
+          <h3>Cierres anteriores</h3>
+          ${data.cierreHistory.slice(-5).reverse().map(c => `<details><summary>${formatDate(c.date)} — ${money(c.cobrado)} cobrado · ${c.sessions} sesiones</summary><div style="margin-top: 8px; font-size: 13px; color: var(--text-light);">${escapeHtml(c.notes||'(sin notas)')}</div></details>`).join('')}
+        </div>` : ''}
+    </div>
+  `;
+}
+
+function saveCierre() {
+  const now = new Date();
+  const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay() + 1);
+  const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate() + 6);
+  const inWeek = (dateStr) => { if (!dateStr) return false; const d = new Date(dateStr); return d >= weekStart && d <= weekEnd; };
+  let cobrado = 0, sessions = 0;
+  for (const p of data.patients) for (const s of p.sessions) if (inWeek(s.date)) { sessions++; if (s.paid) cobrado += s.amount||0; }
+  data.cierreHistory.push({ date: now.toISOString(), cobrado, sessions, notes: document.getElementById('cierreNotes').value });
+  saveData(); toast('✓ Cierre guardado'); renderMain();
+}
+
+function updateSessionById(pid, sid, field, value) {
+  const p = getPatient(pid); const s = p.sessions.find(x=>x.id===sid);
+  if (!s) return;
+  s[field] = value; saveData();
+}
+
+// ==================== HONORARIOS CALCULATOR ====================
+function renderHonorarios(el) {
+  const s = data.settings;
+  if (!s.honorarios) s.honorarios = { gastosFijos: 0, horasSemana: 20, semanasAnio: 48, margenDeseado: 30, duracionSesion: 50 };
+  const h = s.honorarios;
+  const horasAnio = h.horasSemana * h.semanasAnio;
+  const sesionesAnio = horasAnio * (60 / h.duracionSesion);
+  const costoPorSesion = sesionesAnio > 0 ? h.gastosFijos * 12 / sesionesAnio : 0;
+  const tarifaMinima = costoPorSesion * (1 + h.margenDeseado/100);
+  const simulAumento = s.honorarios.simulAumento || 15;
+  const tarifaConAumento = tarifaMinima * (1 + simulAumento/100);
+  const ingresoMensual = tarifaMinima * (sesionesAnio / 12);
+  const ingresoConAumento = tarifaConAumento * (sesionesAnio / 12);
+
+  el.innerHTML = `
+    <div class="tab-content">
+      <h1 style="color: var(--azul-profundo); font-size: 36px; margin-bottom: 4px; font-weight: 400;">Calculadora de honorarios</h1>
+      <p style="color: var(--text-light); margin-bottom: 24px;">¿Cuánto tenés que cobrar por sesión para cubrir tus gastos y ganar lo que querés?</p>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>Tus datos</h3>
+          <div class="field"><label>Gastos fijos mensuales (${s.currency})</label><input type="number" value="${h.gastosFijos}" onchange="updateHonorarios('gastosFijos', parseFloat(this.value)||0)"><div style="font-size: 11px; color: var(--text-light); margin-top: 4px;">Alquiler, servicios, monotributo, supervisión, marketing...</div></div>
+          <div class="grid-2">
+            <div class="field"><label>Horas por semana que querés trabajar</label><input type="number" value="${h.horasSemana}" onchange="updateHonorarios('horasSemana', parseFloat(this.value)||0)"></div>
+            <div class="field"><label>Semanas por año</label><input type="number" value="${h.semanasAnio}" onchange="updateHonorarios('semanasAnio', parseFloat(this.value)||0)"><div style="font-size: 11px; color: var(--text-light); margin-top: 4px;">Descontá vacaciones</div></div>
+          </div>
+          <div class="grid-2">
+            <div class="field"><label>Duración sesión (min)</label><input type="number" value="${h.duracionSesion}" onchange="updateHonorarios('duracionSesion', parseFloat(this.value)||0)"></div>
+            <div class="field"><label>Margen de ganancia deseado (%)</label><input type="number" value="${h.margenDeseado}" onchange="updateHonorarios('margenDeseado', parseFloat(this.value)||0)"></div>
+          </div>
+        </div>
+
+        <div class="card" style="background: var(--azul-profundo); color: var(--arena); border-color: var(--azul-profundo);">
+          <h3 style="color: var(--arena);">Resultado</h3>
+          <div style="margin-bottom: 20px;">
+            <div style="font-size: 12px; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.1em;">Tarifa mínima por sesión</div>
+            <div style="font-family: var(--font-serif); font-size: 48px; font-weight: 500; margin: 8px 0;">${money(Math.round(tarifaMinima))}</div>
+            <div style="font-size: 12px; opacity: 0.7;">Para cubrir gastos + ${h.margenDeseado}% de margen</div>
+          </div>
+          <div class="divider" style="background: rgba(238,232,220,0.2);"></div>
+          <div style="font-size: 13px; line-height: 1.8;">
+            <div>Costo real por sesión: <strong>${money(Math.round(costoPorSesion))}</strong></div>
+            <div>Sesiones por año: <strong>${Math.round(sesionesAnio)}</strong></div>
+            <div>Ingreso mensual estimado: <strong>${money(Math.round(ingresoMensual))}</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Simulador de aumento</h3>
+        <p style="color: var(--text-light); font-size: 13px; margin-bottom: 14px;">Si subís tu tarifa, ¿cuánto cambia tu ingreso mensual?</p>
+        <div class="field" style="max-width: 300px;"><label>Aumento a aplicar (%)</label><input type="number" value="${simulAumento}" onchange="updateHonorarios('simulAumento', parseFloat(this.value)||0)"></div>
+        <div class="grid-2">
+          <div class="alert-item info"><div><strong>Nueva tarifa:</strong> ${money(Math.round(tarifaConAumento))}</div></div>
+          <div class="alert-item success"><div><strong>Nuevo ingreso mensual:</strong> ${money(Math.round(ingresoConAumento))} <span style="color: var(--text-light); font-size: 12px;">(+${money(Math.round(ingresoConAumento-ingresoMensual))})</span></div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h4>💡 Cómo usarlo</h4>
+        <p style="color: var(--text-light); line-height: 1.7; font-size: 13.5px;">Esta tarifa mínima es el <strong>piso para no perder plata</strong>, no el precio que necesariamente cobrás a cada paciente. Si trabajás con obras sociales que pagan menos, compensalo con pacientes privados a tu tarifa real o superior. Revisá el cálculo cada 3 meses, los gastos fijos cambian.</p>
+      </div>
+    </div>
+  `;
+}
+function updateHonorarios(field, value) { if (!data.settings.honorarios) data.settings.honorarios = {}; data.settings.honorarios[field] = value; saveData(); renderMain(); }
+
+// ==================== OBRAS SOCIALES ====================
+function renderObras(el) {
+  const insurers = data.insurers;
+  // compute totals per insurer
+  const totals = {};
+  for (const p of data.patients) {
+    if (!p.insurance?.provider) continue;
+    const prov = p.insurance.provider;
+    if (!totals[prov]) totals[prov] = { presentado: 0, cobrado: 0, rechazado: 0, demoraAvg: [], claims: 0 };
+    for (const c of p.insuranceClaims || []) {
+      totals[prov].claims++;
+      totals[prov].presentado += c.amount || 0;
+      if (c.status === 'paid') {
+        totals[prov].cobrado += c.amountPaid || c.amount || 0;
+        if (c.presentedDate && c.paidDate) {
+          const days = (new Date(c.paidDate) - new Date(c.presentedDate)) / (1000*60*60*24);
+          totals[prov].demoraAvg.push(days);
+        }
+      } else if (c.status === 'rejected') totals[prov].rechazado += c.amount || 0;
+    }
+  }
+
+  el.innerHTML = `
+    <div class="tab-content">
+      <h1 style="color: var(--azul-profundo); font-size: 36px; margin-bottom: 4px; font-weight: 400;">Obras sociales y prepagas</h1>
+      <p style="color: var(--text-light); margin-bottom: 24px;">Qué presentaste, qué te pagaron, qué rechazaron, cuántos días demoran.</p>
+
+      <div class="card">
+        <h3>Catálogo de obras sociales</h3>
+        <p style="color: var(--text-light); font-size: 13px; margin-bottom: 12px;">Cargá las obras sociales / prepagas con las que trabajás. Después las asignás a cada paciente.</p>
+        ${insurers.length === 0 ? '<p style="color: var(--text-muted); padding: 10px;">Aún no cargaste ninguna.</p>' : insurers.map(i => `
+          <div class="alert-item info">
+            <div>
+              <strong>${escapeHtml(i.name)}</strong>
+              <div style="font-size: 12px; color: var(--text-light);">Pagan ${money(i.feeOS||0)} por sesión · Copago del paciente: ${money(i.copay||0)}</div>
+            </div>
+            <button class="btn btn-danger" onclick="deleteInsurer('${i.id}')">🗑</button>
+          </div>
+        `).join('')}
+        <button class="btn btn-primary" onclick="addInsurerModal()">+ Agregar obra social</button>
+      </div>
+
+      ${Object.keys(totals).length > 0 ? `
+      <div class="card">
+        <h3>Resumen por obra social</h3>
+        <div class="commission-row header">
+          <div>Obra social</div><div>Presentado</div><div>Cobrado</div><div>Demora promedio</div><div>Rechazado</div>
+        </div>
+        ${Object.entries(totals).map(([name, t]) => `
+          <div class="commission-row">
+            <div><strong>${escapeHtml(name)}</strong><div style="font-size: 11px; color: var(--text-light);">${t.claims} presentaciones</div></div>
+            <div>${money(t.presentado)}</div>
+            <div style="color: var(--success);">${money(t.cobrado)}</div>
+            <div>${t.demoraAvg.length>0 ? Math.round(t.demoraAvg.reduce((a,b)=>a+b,0)/t.demoraAvg.length) + ' días' : '—'}</div>
+            <div style="color: var(--danger);">${money(t.rechazado)}</div>
+          </div>
+        `).join('')}
+      </div>` : ''}
+
+      <div class="card">
+        <h3>Todas las presentaciones</h3>
+        ${renderAllClaims()}
+      </div>
+    </div>
+  `;
+}
+
+function renderAllClaims() {
+  const claims = [];
+  for (const p of data.patients) for (const c of p.insuranceClaims || [])
+    claims.push({...c, patientName: p.personal.name, patientId: p.id, insurer: p.insurance?.provider || '—'});
+  if (claims.length === 0) return '<p style="color: var(--text-light);">No hay presentaciones cargadas. Cargá reclamos desde la ficha de cada paciente → pestaña "Obra social".</p>';
+  return claims.sort((a,b)=>new Date(b.presentedDate||0)-new Date(a.presentedDate||0)).map(c => {
+    const statusLabel = { pending: 'Pendiente', paid: 'Cobrada', rejected: 'Rechazada' };
+    const statusClass = { pending: 'warning', paid: 'success', rejected: 'danger' };
+    return `<div class="alert-item ${statusClass[c.status]||'info'}">
+      <div><strong>${escapeHtml(c.patientName)}</strong> · ${escapeHtml(c.insurer)} · Período ${c.period||'—'}<div style="font-size: 12px; color: var(--text-light);">Presentado ${formatDate(c.presentedDate)} · ${money(c.amount)} · ${c.sessions||'?'} sesiones</div></div>
+      <span class="pill">${statusLabel[c.status]||c.status}</span>
+    </div>`;
+  }).join('');
+}
+
+function addInsurerModal() {
+  openModal(`
+    <h2>Nueva obra social / prepaga</h2>
+    <div class="field"><label>Nombre</label><input id="ins_name" placeholder="OSDE, Swiss Medical, PAMI..."></div>
+    <div class="grid-2">
+      <div class="field"><label>Monto que paga por sesión (${data.settings.currency})</label><input type="number" id="ins_fee" value="0"></div>
+      <div class="field"><label>Copago del paciente (${data.settings.currency})</label><input type="number" id="ins_copay" value="0"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveInsurer()">Agregar</button>
+    </div>
+  `);
+}
+function saveInsurer() {
+  const name = document.getElementById('ins_name').value.trim();
+  if (!name) { toast('Falta el nombre'); return; }
+  data.insurers.push({ id: uuid(), name, feeOS: parseFloat(document.getElementById('ins_fee').value)||0, copay: parseFloat(document.getElementById('ins_copay').value)||0 });
+  saveData(); closeModal(); renderMain();
+}
+function deleteInsurer(id) {
+  if (!confirm('¿Eliminar esta obra social del catálogo?')) return;
+  data.insurers = data.insurers.filter(i=>i.id!==id); saveData(); renderMain();
+}
+
+// ==================== TEAM VIEW ====================
+function renderTeam(el) {
+  const s = data.settings;
+  const pendingCommissions = getPendingCommissions();
+  const paidCommissions = [];
+  for (const p of data.patients) for (const sess of p.sessions)
+    if (sess.paid && sess.commissionPaid && (sess.amount||0) > 0)
+      paidCommissions.push({patientName: p.personal.name, date: sess.date, amount: sess.amount, commission: sess.amount * (s.commissionPercent/100)});
+  const totalOwed = pendingCommissions.reduce((sum,c)=>sum+c.commission, 0);
+  const totalPaid = paidCommissions.reduce((sum,c)=>sum+c.commission, 0);
+
+  el.innerHTML = `
+    <div class="tab-content">
+      <h1 style="color: var(--azul-profundo); font-size: 36px; margin-bottom: 4px; font-weight: 400;">Equipo y comisiones</h1>
+      <p style="color: var(--text-light); margin-bottom: 24px;">Para cuando trabajás en red y tenés que transferir un porcentaje.</p>
+
+      <div class="card">
+        <h3>Configuración</h3>
+        <div class="checkbox-row" style="margin-bottom: 14px;">
+          <input type="checkbox" id="isInNetwork" ${s.isInNetwork?'checked':''} onchange="data.settings.isInNetwork=this.checked;saveData();renderTeam(document.getElementById('mainContent'));">
+          <label for="isInNetwork" style="margin: 0; text-transform: none; letter-spacing: normal; font-size: 14px; color: var(--text);">Trabajo en red / equipo</label>
+        </div>
+        ${s.isInNetwork ? `
+          <div class="grid-2">
+            <div class="field"><label>Nombre de la jefa/jefe de equipo</label><input value="${escapeHtml(s.teamLeaderName)}" onchange="data.settings.teamLeaderName=this.value;saveData();"></div>
+            <div class="field"><label>Porcentaje de comisión (%)</label><input type="number" value="${s.commissionPercent}" onchange="data.settings.commissionPercent=parseFloat(this.value)||0;saveData();renderTeam(document.getElementById('mainContent'));"></div>
+          </div>
+        ` : ''}
+      </div>
+
+      ${s.isInNetwork ? `
+      <div class="grid-2" style="margin-bottom: 20px;">
+        <div class="stat-card"><div class="stat-value" style="color: var(--danger);">${money(totalOwed.toFixed(0))}</div><div class="stat-label">Por transferir</div></div>
+        <div class="stat-card"><div class="stat-value" style="color: var(--success);">${money(totalPaid.toFixed(0))}</div><div class="stat-label">Ya transferido</div></div>
+      </div>
+
+      <div class="card">
+        <h3>Pendientes de transferir a ${escapeHtml(s.teamLeaderName||'la jefa')}</h3>
+        ${pendingCommissions.length === 0 ? '<p style="color: var(--text-light);">No hay comisiones pendientes.</p>' : `
+          <div class="commission-row header"><div>Paciente</div><div>Fecha</div><div>Sesión</div><div>Comisión</div><div></div></div>
+          ${pendingCommissions.map(c => `<div class="commission-row">
+            <div>${escapeHtml(c.patientName)}</div><div>${formatDate(c.date)}</div><div>${money(c.amount)}</div>
+            <div><strong>${money(c.commission.toFixed(0))}</strong></div>
+            <button class="btn btn-success" onclick="markCommissionPaid('${c.patientId}','${c.sessionId}')">✓</button>
+          </div>`).join('')}
+        `}
+      </div>` : '<div class="card"><p style="color: var(--text-light); padding: 10px;">Activá "Trabajo en red" arriba si sos parte de una red.</p></div>'}
+    </div>
+  `;
+}
+
+// ==================== PATIENTS LIST ====================
+function renderPatientsList(el) {
+  el.innerHTML = `
+    <div class="tab-content">
+      <h1 style="color: var(--azul-profundo); font-size: 36px; margin-bottom: 4px; font-weight: 400;">Pacientes</h1>
+      <p style="color: var(--text-light); margin-bottom: 24px;">Elegí uno del menú lateral, o creá uno nuevo.</p>
+      ${data.patients.length === 0 ? '<div class="card"><p style="text-align: center; padding: 30px; color: var(--text-light);">Todavía no hay pacientes. Hacé clic en "+ Nuevo paciente" en el panel lateral.</p></div>' :
+        `<div class="card">${data.patients.map(p => `
+          <div class="alert-item info" style="cursor: pointer;" onclick="selectPatient('${p.id}')">
+            <div><strong>${escapeHtml(p.personal.name)}</strong>
+              <div style="color: var(--text-light); font-size: 12px; margin-top: 2px;">${p.sessions.length} sesiones · ${escapeHtml(p.personal.motiveOfConsultation).slice(0,80)}</div>
+            </div>
+            <button class="btn">Abrir →</button>
+          </div>`).join('')}</div>`
+      }
+    </div>
+  `;
+}
+
+// ==================== PATIENT VIEW ====================
+function renderPatient(el) {
+  const p = getPatient(currentPatientId);
+  if (!p) { showView('patients'); return; }
+  el.innerHTML = `
+    <div class="patient-header">
+      <h1>${escapeHtml(p.personal.name)}</h1>
+      <div class="subtitle">Paciente desde ${formatDate(p.createdAt)} · ${p.sessions.length} sesiones registradas <span class="save-status" id="saveStatus">✓ Guardado</span></div>
+      <div class="patient-actions">
+        <button class="btn btn-danger" onclick="deletePatient()">🗑 Eliminar</button>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab ${currentTab==='personal'?'active':''}" onclick="selectTab('personal')">Datos y motivo</button>
+      <button class="tab ${currentTab==='anamnesis'?'active':''}" onclick="selectTab('anamnesis')">Historia clínica</button>
+      <button class="tab ${currentTab==='consent'?'active':''}" onclick="selectTab('consent')">Consentimiento</button>
+      <button class="tab ${currentTab==='sessions'?'active':''}" onclick="selectTab('sessions')">Sesiones</button>
+      <button class="tab ${currentTab==='evolution'?'active':''}" onclick="selectTab('evolution')">Evolución (Ley 26.529)</button>
+      <button class="tab ${currentTab==='goals'?'active':''}" onclick="selectTab('goals')">🎯 Objetivos</button>
+      <button class="tab ${currentTab==='network'?'active':''}" onclick="selectTab('network')">🔗 Red profesional</button>
+      <button class="tab ${currentTab==='evaluations'?'active':''}" onclick="selectTab('evaluations')">Evaluaciones</button>
+      <button class="tab ${currentTab==='genogram'?'active':''}" onclick="selectTab('genogram')">Genograma</button>
+      <button class="tab ${currentTab==='payments'?'active':''}" onclick="selectTab('payments')">Pagos</button>
+      <button class="tab ${currentTab==='receipts'?'active':''}" onclick="selectTab('receipts')">Recibos</button>
+      <button class="tab ${currentTab==='insurance'?'active':''}" onclick="selectTab('insurance')">Obra social</button>
+    </div>
+    <div id="tabContent" class="tab-content"></div>
+  `;
+  renderTabContent();
+}
+
+function selectTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  if (event?.target) event.target.classList.add('active');
+  renderTabContent();
+}
+
+function renderTabContent() {
+  const p = getPatient(currentPatientId);
+  const el = document.getElementById('tabContent');
+  if (!el || !p) return;
+  if (currentTab === 'personal') renderPersonal(el, p);
+  else if (currentTab === 'anamnesis') renderAnamnesis(el, p);
+  else if (currentTab === 'consent') renderConsent(el, p);
+  else if (currentTab === 'sessions') renderSessions(el, p);
+  else if (currentTab === 'evolution') renderEvolution(el, p);
+  else if (currentTab === 'goals') renderGoals(el, p);
+  else if (currentTab === 'network') renderNetwork(el, p);
+  else if (currentTab === 'evaluations') renderEvaluations(el, p);
+  else if (currentTab === 'genogram') renderGenogram(el, p);
+  else if (currentTab === 'payments') renderPayments(el, p);
+  else if (currentTab === 'receipts') renderReceipts(el, p);
+  else if (currentTab === 'insurance') renderInsurance(el, p);
+}
+
+function updateField(path, value) {
+  const p = getPatient(currentPatientId);
+  const parts = path.split('.'); let obj = p;
+  for (let i=0;i<parts.length-1;i++) obj=obj[parts[i]];
+  obj[parts[parts.length-1]] = value; saveData();
+}
+
+// ==================== TAB: PERSONAL ====================
+function renderPersonal(el, p) {
+  el.innerHTML = `
+    <div class="card">
+      <h3>Datos personales</h3>
+      <div class="grid-2">
+        <div class="field"><label>Nombre completo</label><input value="${escapeHtml(p.personal.name)}" onchange="updateField('personal.name', this.value); renderSidebar();"></div>
+        <div class="field"><label>Fecha de nacimiento</label><input type="date" value="${p.personal.dob}" onchange="updateField('personal.dob', this.value)"></div>
+        <div class="field"><label>Género</label>
+          <select onchange="updateField('personal.gender', this.value)">
+            <option value="">—</option>
+            <option ${p.personal.gender==='F'?'selected':''} value="F">Femenino</option>
+            <option ${p.personal.gender==='M'?'selected':''} value="M">Masculino</option>
+            <option ${p.personal.gender==='X'?'selected':''} value="X">No binario / Otro</option>
+          </select>
+        </div>
+        <div class="field"><label>DNI / Documento</label><input value="${escapeHtml(p.personal.document)}" onchange="updateField('personal.document', this.value)"></div>
+        <div class="field"><label>Teléfono (para WhatsApp)</label><input value="${escapeHtml(p.personal.phone)}" onchange="updateField('personal.phone', this.value)" placeholder="+54 9 11 ..."></div>
+        <div class="field"><label>Email</label><input value="${escapeHtml(p.personal.email)}" onchange="updateField('personal.email', this.value)"></div>
+        <div class="field"><label>Dirección</label><input value="${escapeHtml(p.personal.address)}" onchange="updateField('personal.address', this.value)"></div>
+        <div class="field"><label>Ocupación</label><input value="${escapeHtml(p.personal.occupation)}" onchange="updateField('personal.occupation', this.value)"></div>
+        <div class="field"><label>Estudios</label><input value="${escapeHtml(p.personal.education)}" onchange="updateField('personal.education', this.value)"></div>
+        <div class="field"><label>Estado civil</label><input value="${escapeHtml(p.personal.maritalStatus)}" onchange="updateField('personal.maritalStatus', this.value)"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Motivo de consulta</h3>
+      <div class="field"><label>Derivado/a por</label><input value="${escapeHtml(p.personal.referredBy)}" onchange="updateField('personal.referredBy', this.value)"></div>
+      <div class="field"><label>Motivo de consulta</label><textarea rows="6" onchange="updateField('personal.motiveOfConsultation', this.value)">${escapeHtml(p.personal.motiveOfConsultation)}</textarea></div>
+    </div>
+    <div class="card">
+      <h3>Honorarios y cobertura</h3>
+      ${(function(){
+        if (!p.insurance.payMode) p.insurance.payMode = p.insurance.provider ? 'os' : 'particular';
+        const mode = p.insurance.payMode;
+        return `
+        <label>¿Cómo paga este paciente?</label>
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+          <label class="checkbox-row" style="flex: 1; padding: 14px; border: 2px solid ${mode==='particular'?'var(--azul-profundo)':'var(--border)'}; border-radius: var(--radius-sm); cursor: pointer; background: ${mode==='particular'?'var(--arena-light)':'var(--blanco)'};">
+            <input type="radio" name="payMode" value="particular" ${mode==='particular'?'checked':''} onchange="updateField('insurance.payMode','particular'); updateField('insurance.provider',''); renderTabContent();">
+            <div><strong style="font-size: 14px; color: var(--azul-profundo);">💵 Particular</strong><div style="font-size: 11px; color: var(--text-light);">Me paga directo a mí</div></div>
+          </label>
+          <label class="checkbox-row" style="flex: 1; padding: 14px; border: 2px solid ${mode==='os'?'var(--azul-profundo)':'var(--border)'}; border-radius: var(--radius-sm); cursor: pointer; background: ${mode==='os'?'var(--arena-light)':'var(--blanco)'};">
+            <input type="radio" name="payMode" value="os" ${mode==='os'?'checked':''} onchange="updateField('insurance.payMode','os'); renderTabContent();">
+            <div><strong style="font-size: 14px; color: var(--azul-profundo);">🏥 Obra social</strong><div style="font-size: 11px; color: var(--text-light);">Se factura a la OS</div></div>
+          </label>
+          <label class="checkbox-row" style="flex: 1; padding: 14px; border: 2px solid ${mode==='mixto'?'var(--azul-profundo)':'var(--border)'}; border-radius: var(--radius-sm); cursor: pointer; background: ${mode==='mixto'?'var(--arena-light)':'var(--blanco)'};">
+            <input type="radio" name="payMode" value="mixto" ${mode==='mixto'?'checked':''} onchange="updateField('insurance.payMode','mixto'); renderTabContent();">
+            <div><strong style="font-size: 14px; color: var(--azul-profundo);">🔀 Mixto</strong><div style="font-size: 11px; color: var(--text-light);">OS + copago</div></div>
+          </label>
+        </div>
+
+        ${mode !== 'particular' ? `
+          <div class="grid-3" style="margin-bottom: 12px;">
+            <div class="field"><label>¿Cuál obra social?</label>
+              <select onchange="updateField('insurance.provider', this.value)">
+                <option value="">— Elegí una —</option>
+                ${data.insurers.map(i => `<option ${p.insurance.provider===i.name?'selected':''}>${escapeHtml(i.name)}</option>`).join('')}
+              </select>
+              ${data.insurers.length === 0 ? '<div style="font-size: 11px; color: var(--warning); margin-top: 4px;">⚠ Primero cargá obras sociales en "Obras sociales" (menú lateral)</div>' : `<div style="font-size: 11px; color: var(--text-light); margin-top: 4px;">¿No está la que necesitás? <a href="#" onclick="showView(\\'obras\\'); return false;" style="color: var(--azul-medio);">Agregala acá</a></div>`}
+            </div>
+            <div class="field"><label>N° de afiliado</label><input value="${escapeHtml(p.insurance.planNumber||'')}" onchange="updateField('insurance.planNumber', this.value)"></div>
+            <div class="field"><label>Copago del paciente</label><input type="number" value="${p.insurance.copay||0}" onchange="updateField('insurance.copay', parseFloat(this.value)||0)"></div>
+          </div>
+          <div class="alert-item info" style="margin-bottom: 14px;"><div style="font-size: 12.5px;">Para cargar presentaciones mensuales a la OS, qué te pagaron y qué te rechazaron, usá la pestaña <strong>"Obra social"</strong> acá arriba.</div></div>
+        ` : ''}
+        `;
+      })()}
+
+      <label style="margin-top: 8px;">Honorarios</label>
+      <div class="grid-3">
+        <div class="field"><label>Monto por sesión (${data.settings.currency})</label><input type="number" value="${p.fee.amount||''}" onchange="updateField('fee.amount', parseFloat(this.value)||0)"></div>
+        <div class="field"><label>Día de pago</label><input value="${escapeHtml(p.fee.paymentDay)}" onchange="updateField('fee.paymentDay', this.value)" placeholder="Ej: fin de mes"></div>
+        <div class="field"><label>Método de pago</label><input value="${escapeHtml(p.fee.paymentMethod)}" onchange="updateField('fee.paymentMethod', this.value)" placeholder="Transferencia, efectivo..."></div>
+      </div>
+    </div>
+  `;
+}
+
+// ==================== TAB: ANAMNESIS ====================
+function renderAnamnesis(el, p) {
+  const fields = [['personalBg','Antecedentes personales'],['familyBg','Antecedentes familiares'],['developmentalHistory','Historia del desarrollo (infancia, adolescencia)'],['schoolBg','Antecedentes escolares / académicos'],['workBg','Antecedentes laborales'],['medicalBg','Antecedentes médicos'],['psychiatricBg','Antecedentes psiquiátricos / tratamientos previos'],['currentMedication','Medicación actual'],['substanceUse','Consumo de sustancias'],['significantEvents','Eventos significativos / traumas'],['socialSupport','Red de apoyo social'],['hobbies','Intereses y actividades recreativas']];
+  el.innerHTML = `<div class="card"><h3>Historia clínica / Anamnesis</h3>
+    ${fields.map(([k,label]) => `<div class="field"><label>${label}</label><textarea rows="3" onchange="updateField('anamnesis.${k}', this.value)">${escapeHtml(p.anamnesis[k]||'')}</textarea></div>`).join('')}
+  </div>`;
+}
+
+// ==================== TAB: CONSENT ====================
+function renderConsent(el, p) {
+  el.innerHTML = `
+    <div class="card">
+      <h3>Consentimiento informado</h3>
+      <p style="color: var(--text-light); font-size: 13.5px; line-height: 1.6; margin-bottom: 14px;">Según la Ley Nacional 26.529 (Derechos del Paciente), toda historia clínica debe contar con el consentimiento informado del paciente. Registrá acá cuándo lo firmó y notas particulares.</p>
+      <div class="checkbox-row" style="margin-bottom: 14px;">
+        <input type="checkbox" id="consentSigned" ${p.consent.signed?'checked':''} onchange="updateField('consent.signed', this.checked)">
+        <label for="consentSigned" style="margin: 0; text-transform: none; letter-spacing: normal; font-size: 14px; color: var(--text);">El paciente firmó el consentimiento informado</label>
+      </div>
+      <div class="grid-2">
+        <div class="field"><label>Fecha de firma</label><input type="date" value="${p.consent.date||''}" onchange="updateField('consent.date', this.value)"></div>
+      </div>
+      <div class="field"><label>Notas sobre el consentimiento</label><textarea rows="4" onchange="updateField('consent.notes', this.value)" placeholder="Alcance acordado, confidencialidad, uso de material...">${escapeHtml(p.consent.notes||'')}</textarea></div>
+      <button class="btn btn-primary" onclick="generateConsentPDF()">📄 Generar modelo de consentimiento (PDF)</button>
+    </div>
+  `;
+}
+
+function generateConsentPDF() {
+  const p = getPatient(currentPatientId);
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.text('CONSENTIMIENTO INFORMADO', 105, 20, {align:'center'});
+  doc.setFont('helvetica','normal'); doc.setFontSize(11);
+  let y = 35;
+  const line = (text, bold=false) => { doc.setFont('helvetica', bold?'bold':'normal'); const split = doc.splitTextToSize(text, 170); doc.text(split, 20, y); y += split.length * 6; };
+  line(`Fecha: ${formatDate(new Date().toISOString())}`);
+  line(`Paciente: ${p.personal.name || '____________________'}`);
+  line(`DNI: ${p.personal.document || '____________________'}`);
+  line(`Profesional: ${data.settings.therapistName || '____________________'}${data.settings.license ? ' — Mat. '+data.settings.license : ''}`);
+  y += 6;
+  line('1. ALCANCE DEL TRATAMIENTO', true);
+  line('El tratamiento psicológico consiste en un proceso de acompañamiento clínico que se desarrolla mediante encuentros periódicos. Su objetivo es trabajar sobre el malestar, los síntomas y/o los motivos de consulta planteados.');
+  y += 4;
+  line('2. CONFIDENCIALIDAD', true);
+  line('Toda la información compartida en el espacio terapéutico está protegida por el secreto profesional (art. 156 del Código Penal), con excepción de los casos previstos por la ley: riesgo de vida propio o de terceros, situaciones de abuso a menores, o requerimiento judicial fundado.');
+  y += 4;
+  line('3. HISTORIA CLÍNICA (Ley 26.529)', true);
+  line('Se llevará un registro escrito de los encuentros, con fecha, evolución y observaciones clínicas, resguardado bajo normas de confidencialidad. El paciente puede solicitar copia de su historia clínica en cualquier momento.');
+  y += 4;
+  line('4. HONORARIOS Y CANCELACIONES', true);
+  line('Los honorarios y la modalidad de pago fueron acordados verbalmente al inicio del tratamiento. Las cancelaciones avisadas con menos de 24hs pueden ser facturadas en su totalidad.');
+  y += 10;
+  line('Firma del paciente: _____________________________');
+  y += 10;
+  line('Firma del profesional: __________________________');
+  doc.save(`consentimiento_${sanitize(p.personal.name)}.pdf`);
+  toast('✓ PDF descargado');
+}
+
+// ==================== TAB: SESSIONS ====================
+function renderSessions(el, p) {
+  el.innerHTML = `
+    <div class="card">
+      <h3>Registro de sesiones</h3>
+      <button class="btn btn-primary" onclick="addSession()">+ Nueva sesión</button>
+    </div>
+    ${p.sessions.length === 0 ? '<p style="color: var(--text-light); text-align: center; padding: 40px;">Aún no hay sesiones registradas.</p>' :
+      [...p.sessions].reverse().map(s => renderSessionCard(s, p.fee.amount)).join('')}
+  `;
+}
+
+function renderSessionCard(s, defaultFee) {
+  const p = getPatient(currentPatientId);
+  return `<div class="card">
+    <div class="session-item-header">
+      <div class="date">Sesión del ${formatDate(s.date)} ${s.time?'· '+s.time:''}</div>
+      <div>
+        <span class="status ${s.paid?'paid':'pending'}">${s.paid?'Pagada':'Pendiente'}</span>
+        ${p.personal.phone ? `<button class="btn btn-secondary" onclick="sendWhatsAppReminder('${currentPatientId}','${s.id}')" style="margin-left: 8px;">💬 WhatsApp</button>` : ''}
+        <button class="btn btn-danger" onclick="deleteSession('${s.id}')" style="margin-left: 8px;">🗑</button>
+      </div>
+    </div>
+    <div class="grid-3" style="margin-bottom: 10px;">
+      <div class="field"><label>Fecha</label><input type="date" value="${s.date}" onchange="updateSession('${s.id}','date',this.value)"></div>
+      <div class="field"><label>Hora</label><input type="time" value="${s.time||''}" onchange="updateSession('${s.id}','time',this.value)"></div>
+      <div class="field"><label>Duración (min)</label><input type="number" value="${s.duration||50}" onchange="updateSession('${s.id}','duration',parseInt(this.value)||50)"></div>
+    </div>
+    <div class="field">
+      <label style="display: flex; justify-content: space-between; align-items: center;">
+        <span>Observaciones y notas</span>
+        <button class="btn" style="padding: 3px 10px; font-size: 11px; margin: 0;" onclick="aiStructureSessionNotes('${s.id}')" title="Estructura tus notas crudas en formato clínico con IA">✨ Estructurar con IA</button>
+      </label>
+      <textarea rows="4" onchange="updateSession('${s.id}','notes',this.value)">${escapeHtml(s.notes||'')}</textarea>
+    </div>
+    <div class="field"><label>Intervenciones</label><textarea rows="2" onchange="updateSession('${s.id}','interventions',this.value)">${escapeHtml(s.interventions||'')}</textarea></div>
+    <div class="field"><label>Tareas / consignas</label><textarea rows="2" onchange="updateSession('${s.id}','homework',this.value)">${escapeHtml(s.homework||'')}</textarea></div>
+    <div class="grid-3">
+      <div class="field"><label>Monto (${data.settings.currency})</label><input type="number" value="${s.amount||defaultFee||0}" onchange="updateSession('${s.id}','amount',parseFloat(this.value)||0)"></div>
+      <div class="field checkbox-row" style="margin-top: 22px;"><input type="checkbox" id="paid_${s.id}" ${s.paid?'checked':''} onchange="updateSession('${s.id}','paid',this.checked); if(this.checked) offerReceipt('${s.id}');"><label for="paid_${s.id}" style="margin: 0; text-transform: none; letter-spacing: normal; font-size: 13.5px; color: var(--text);">Pago recibido</label></div>
+      ${data.settings.isInNetwork && s.paid ? `<div class="field checkbox-row" style="margin-top: 22px;"><input type="checkbox" id="com_${s.id}" ${s.commissionPaid?'checked':''} onchange="updateSession('${s.id}','commissionPaid',this.checked)"><label for="com_${s.id}" style="margin: 0; text-transform: none; letter-spacing: normal; font-size: 13.5px; color: var(--text);">Comisión transferida</label></div>` : ''}
+    </div>
+  </div>`;
+}
+
+function addSession() {
+  const p = getPatient(currentPatientId);
+  p.sessions.push({ id: uuid(), date: new Date().toISOString().split('T')[0], time: '', duration: 50, notes: '', interventions: '', homework: '', amount: p.fee.amount || 0, paid: false, commissionPaid: false });
+  saveData(); renderTabContent();
+}
+function updateSession(id, field, value) {
+  const p = getPatient(currentPatientId);
+  const s = p.sessions.find(x => x.id === id); if (!s) return;
+  s[field] = value; saveData();
+  if (field === 'paid' || field === 'date') renderSidebar();
+}
+function deleteSession(id) {
+  if (!confirm('¿Eliminar esta sesión?')) return;
+  const p = getPatient(currentPatientId);
+  p.sessions = p.sessions.filter(s => s.id !== id);
+  saveData(); renderTabContent();
+}
+
+function offerReceipt(sessionId) {
+  const p = getPatient(currentPatientId);
+  const s = p.sessions.find(x=>x.id===sessionId);
+  if (!s || !s.amount) return;
+  setTimeout(() => {
+    if (confirm('¿Generar recibo en PDF para esta sesión?')) generateReceipt(sessionId);
+  }, 200);
+}
+
+// WhatsApp reminders
+function sendWhatsAppReminder(pid, sid) {
+  const p = getPatient(pid);
+  const s = p.sessions.find(x=>x.id===sid);
+  if (!p.personal.phone) { toast('El paciente no tiene teléfono cargado'); return; }
+  const dateStr = formatDate(s.date);
+  const text = `Hola ${p.personal.name.split(' ')[0]}! Te recuerdo tu sesión del ${dateStr}${s.time?' a las '+s.time:''}. ¡Nos vemos pronto!`;
+  const phone = p.personal.phone.replace(/[^0-9]/g,'');
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
+}
+function useReconnectTemplate(pid) {
+  const t = data.settings.whatsappTemplates.find(x => x.title.includes('ausente')) || { id: data.settings.whatsappTemplates[0]?.id, content: 'Hola {nombre}, ¿cómo estás?' };
+  if (t) useTemplateModal(t.id);
+  setTimeout(() => {
+    const sel = document.getElementById('tpl_patient');
+    if (sel) { sel.value = pid; refreshTemplatePreview(t.id); }
+  }, 100);
+}
+
+function sendPaymentReminder(pid, sid) {
+  const p = getPatient(pid);
+  const s = p.sessions.find(x=>x.id===sid);
+  if (!p.personal.phone) { toast('El paciente no tiene teléfono cargado'); return; }
+  const text = `Hola ${p.personal.name.split(' ')[0]}! Te paso un recordatorio amigable del pago de la sesión del ${formatDate(s.date)} (${money(s.amount)}). ¡Gracias!`;
+  const phone = p.personal.phone.replace(/[^0-9]/g,'');
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
+}
+
+// ==================== TAB: EVOLUTION NOTES (Ley 26.529) ====================
+function renderEvolution(el, p) {
+  el.innerHTML = `
+    <div class="card">
+      <h3>Notas de evolución — Ley 26.529</h3>
+      <p style="color: var(--text-light); font-size: 13px; margin-bottom: 14px; line-height: 1.6;">Las notas de evolución son el registro cronológico del proceso terapéutico que exige la ley. Deben estar <strong>numeradas, fechadas y firmadas</strong>. Cargalas acá y después las exportás como PDF.</p>
+      <button class="btn btn-primary" onclick="addEvolutionNote()">+ Nueva nota de evolución</button>
+      <button class="btn" onclick="generateEvolutionPDF()">📄 Exportar todas en PDF</button>
+    </div>
+    ${p.evolutionNotes.length === 0 ? '<p style="color: var(--text-light); text-align: center; padding: 40px;">Aún no hay notas de evolución.</p>' :
+      [...p.evolutionNotes].reverse().map((n, idx) => {
+        const num = p.evolutionNotes.length - idx;
+        return `<div class="card">
+          <div class="session-item-header">
+            <div class="date">Nota N° ${num} — ${formatDate(n.date)}</div>
+            <button class="btn btn-danger" onclick="deleteEvolutionNote('${n.id}')">🗑</button>
+          </div>
+          <div class="grid-2">
+            <div class="field"><label>Fecha</label><input type="date" value="${n.date}" onchange="updateEvolutionNote('${n.id}','date',this.value)"></div>
+            <div class="field"><label>Modalidad</label>
+              <select onchange="updateEvolutionNote('${n.id}','modality',this.value)">
+                <option value="presencial" ${n.modality==='presencial'?'selected':''}>Presencial</option>
+                <option value="virtual" ${n.modality==='virtual'?'selected':''}>Virtual</option>
+                <option value="telefónica" ${n.modality==='telefónica'?'selected':''}>Telefónica</option>
+              </select>
+            </div>
+          </div>
+          <div class="field"><label>Motivo de la consulta en esta sesión</label><textarea rows="2" onchange="updateEvolutionNote('${n.id}','motive',this.value)">${escapeHtml(n.motive||'')}</textarea></div>
+          <div class="field">
+            <label style="display: flex; justify-content: space-between; align-items: center;">
+              <span>Contenido clínico / evolución</span>
+              <button class="btn" style="padding: 3px 10px; font-size: 11px; margin: 0;" onclick="aiStructureEvolutionNote('${n.id}')" title="Estructura con IA en formato Ley 26.529">✨ Estructurar con IA</button>
+            </label>
+            <textarea rows="5" onchange="updateEvolutionNote('${n.id}','content',this.value)">${escapeHtml(n.content||'')}</textarea>
+          </div>
+          <div class="field"><label>Intervenciones y encuadre</label><textarea rows="2" onchange="updateEvolutionNote('${n.id}','interventions',this.value)">${escapeHtml(n.interventions||'')}</textarea></div>
+          <div class="field"><label>Plan para próximas sesiones</label><textarea rows="2" onchange="updateEvolutionNote('${n.id}','plan',this.value)">${escapeHtml(n.plan||'')}</textarea></div>
+        </div>`;
+      }).join('')}
+  `;
+}
+
+function addEvolutionNote() {
+  const p = getPatient(currentPatientId);
+  p.evolutionNotes.push({ id: uuid(), date: new Date().toISOString().split('T')[0], modality: 'presencial', motive: '', content: '', interventions: '', plan: '' });
+  saveData(); renderTabContent();
+}
+function updateEvolutionNote(id, field, value) {
+  const p = getPatient(currentPatientId);
+  const n = p.evolutionNotes.find(x => x.id === id); if (!n) return;
+  n[field] = value; saveData();
+}
+function deleteEvolutionNote(id) {
+  if (!confirm('¿Eliminar esta nota?')) return;
+  const p = getPatient(currentPatientId);
+  p.evolutionNotes = p.evolutionNotes.filter(n => n.id !== id);
+  saveData(); renderTabContent();
+}
+
+function generateEvolutionPDF() {
+  const p = getPatient(currentPatientId);
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.text('NOTAS DE EVOLUCIÓN', 105, 20, {align:'center'});
+  doc.setFontSize(10); doc.setFont('helvetica','normal');
+  doc.text(`Paciente: ${p.personal.name}`, 20, 30);
+  doc.text(`DNI: ${p.personal.document||'—'}`, 20, 36);
+  doc.text(`Profesional: ${data.settings.therapistName||'—'}${data.settings.license?' · Mat. '+data.settings.license:''}`, 20, 42);
+  doc.text(`Historia clínica — Ley 26.529`, 20, 48);
+  let y = 60;
+  p.evolutionNotes.forEach((n, i) => {
+    if (y > 260) { doc.addPage(); y = 20; }
+    doc.setFont('helvetica','bold'); doc.setFontSize(11);
+    doc.text(`Nota N° ${i+1} — ${formatDate(n.date)} (${n.modality||''})`, 20, y); y += 7;
+    doc.setFont('helvetica','normal'); doc.setFontSize(10);
+    const block = (title, text) => {
+      if (!text) return;
+      if (y > 275) { doc.addPage(); y = 20; }
+      doc.setFont('helvetica','bold'); doc.text(title+':', 20, y); y += 5;
+      doc.setFont('helvetica','normal'); const lines = doc.splitTextToSize(text, 170);
+      doc.text(lines, 20, y); y += lines.length * 5 + 3;
+    };
+    block('Motivo', n.motive); block('Contenido', n.content); block('Intervenciones', n.interventions); block('Plan', n.plan);
+    y += 4; doc.setDrawColor(200); doc.line(20, y, 190, y); y += 6;
+  });
+  doc.save(`evolucion_${sanitize(p.personal.name)}.pdf`);
+}
+
+// ==================== TAB: EVALUATIONS ====================
+function renderEvaluations(el, p) {
+  el.innerHTML = `
+    <div class="card"><h3>Evaluaciones y tests</h3><button class="btn btn-primary" onclick="addEvaluation()">+ Nueva evaluación</button></div>
+    ${p.evaluations.length === 0 ? '<p style="color: var(--text-light); text-align: center; padding: 40px;">Aún no hay evaluaciones registradas.</p>' :
+      p.evaluations.map(e => `<div class="card">
+        <div class="session-item-header">
+          <div class="date">${escapeHtml(e.testName||'Evaluación')} · ${formatDate(e.date)}</div>
+          <button class="btn btn-danger" onclick="deleteEvaluation('${e.id}')">🗑</button>
+        </div>
+        <div class="grid-2">
+          <div class="field"><label>Nombre del test</label><input value="${escapeHtml(e.testName||'')}" onchange="updateEvaluation('${e.id}','testName',this.value)"></div>
+          <div class="field"><label>Fecha</label><input type="date" value="${e.date}" onchange="updateEvaluation('${e.id}','date',this.value)"></div>
+        </div>
+        <div class="field"><label>Resultados</label><textarea rows="4" onchange="updateEvaluation('${e.id}','results',this.value)">${escapeHtml(e.results||'')}</textarea></div>
+        <div class="field"><label>Observaciones</label><textarea rows="3" onchange="updateEvaluation('${e.id}','observations',this.value)">${escapeHtml(e.observations||'')}</textarea></div>
+      </div>`).join('')}
+  `;
+}
+function addEvaluation() { const p = getPatient(currentPatientId); p.evaluations.push({id: uuid(), date: new Date().toISOString().split('T')[0], testName: '', results: '', observations: ''}); saveData(); renderTabContent(); }
+function updateEvaluation(id, field, value) { const p = getPatient(currentPatientId); const e = p.evaluations.find(x=>x.id===id); if(!e) return; e[field] = value; saveData(); }
+function deleteEvaluation(id) { if (!confirm('¿Eliminar?')) return; const p = getPatient(currentPatientId); p.evaluations = p.evaluations.filter(e=>e.id!==id); saveData(); renderTabContent(); }
+
+// ==================== TAB: PAYMENTS ====================
+function renderPayments(el, p) {
+  const paid = p.sessions.filter(s => s.paid);
+  const pending = p.sessions.filter(s => !s.paid);
+  const totalPaid = paid.reduce((s,x)=>s+(x.amount||0),0);
+  const totalPending = pending.reduce((s,x)=>s+(x.amount||0),0);
+  const byMonth = {};
+  for (const s of p.sessions) {
+    if (!s.date) continue;
+    const d = new Date(s.date);
+    const key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    if (!byMonth[key]) byMonth[key] = [];
+    byMonth[key].push(s);
+  }
+  const monthKeys = Object.keys(byMonth).sort().reverse();
+
+  el.innerHTML = `
+    <div class="card" style="background: var(--arena-light); border-left: 4px solid var(--azul-medio);">
+      <h4 style="color: var(--azul-profundo);">💡 Cómo funciona</h4>
+      <p style="font-size: 13.5px; line-height: 1.6;">Cada <strong>sesión</strong> es un cobro. Las ves agrupadas por mes abajo y marcás cuáles te pagaron. Si te pagaron varias juntas, usá "Marcar mes como pagado".</p>
+      <div style="margin-top: 10px;">
+        <button class="btn btn-primary" onclick="selectTab('sessions')">+ Ir a Sesiones</button>
+        <button class="btn" onclick="quickAddPayment()">💵 Pago suelto (sin sesión)</button>
+      </div>
+    </div>
+
+    <div class="grid-3" style="margin-bottom: 20px;">
+      <div class="stat-card"><div class="stat-value" style="color: var(--success);">${money(totalPaid)}</div><div class="stat-label">Total cobrado</div></div>
+      <div class="stat-card"><div class="stat-value" style="color: var(--warning);">${money(totalPending)}</div><div class="stat-label">Total pendiente</div></div>
+      <div class="stat-card"><div class="stat-value">${p.sessions.length}</div><div class="stat-label">Sesiones totales</div></div>
+    </div>
+
+    ${monthKeys.length === 0 ? '<div class="card" style="text-align: center; padding: 40px;"><p style="color: var(--text-light);">Cargá una sesión primero.</p></div>' : monthKeys.map(mk => {
+      const sess = byMonth[mk].sort((a,b) => a.date > b.date ? -1 : 1);
+      const mPaid = sess.filter(s=>s.paid).reduce((sum,s)=>sum+(s.amount||0),0);
+      const mPending = sess.filter(s=>!s.paid).reduce((sum,s)=>sum+(s.amount||0),0);
+      const allPaid = sess.every(s=>s.paid);
+      const [y,m] = mk.split('-');
+      const monthName = new Date(y, parseInt(m)-1, 1).toLocaleDateString('es-AR', {month: 'long', year: 'numeric'});
+      return `<div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <div><h3 style="text-transform: capitalize; margin: 0;">${monthName}</h3>
+            <div style="color: var(--text-light); font-size: 13px; margin-top: 4px;">${sess.length} sesiones · Cobrado: <strong style="color: var(--success);">${money(mPaid)}</strong> · Pendiente: <strong style="color: var(--warning);">${money(mPending)}</strong></div>
+          </div>
+          ${!allPaid ? `<button class="btn btn-success" onclick="markMonthPaid('${mk}')">✓ Marcar mes pagado</button>` : '<span style="color: var(--success); font-weight: 600;">✓ Todo pagado</span>'}
+        </div>
+        ${sess.map(s => `<div class="alert-item ${s.paid?'success':'warning'}" style="margin-bottom: 6px;">
+          <div>
+            <strong>${formatDate(s.date)}</strong> ${s.time?'· '+s.time:''} · ${money(s.amount||0)}
+            ${s.notes ? `<div style="font-size: 12px; color: var(--text-light); margin-top: 4px;">${escapeHtml(s.notes.slice(0,80))}${s.notes.length>80?'...':''}</div>` : ''}
+          </div>
+          <div class="row">
+            ${s.paid ? `<button class="btn" onclick="generateReceipt('${s.id}')">📄 Recibo</button>` : ''}
+            <label class="checkbox-row"><input type="checkbox" ${s.paid?'checked':''} onchange="updateSession('${s.id}','paid',this.checked); renderTabContent(); renderSidebar();"> <span>${s.paid?'Pagada':'Marcar pagada'}</span></label>
+          </div>
+        </div>`).join('')}
+      </div>`;
+    }).join('')}
+  `;
+}
+
+function markMonthPaid(monthKey) {
+  const p = getPatient(currentPatientId);
+  for (const s of p.sessions) {
+    if (!s.date) continue;
+    const d = new Date(s.date);
+    const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    if (key === monthKey) s.paid = true;
+  }
+  saveData(); renderTabContent(); renderSidebar();
+  toast('✓ Mes marcado como pagado');
+}
+function quickAddPayment() {
+  const p = getPatient(currentPatientId);
+  openModal(`
+    <h2>Registrar pago suelto</h2>
+    <p style="color: var(--text-light); font-size: 13px; margin-bottom: 12px;">Para adelantos, ajustes, pagos que no son por una sesión.</p>
+    <div class="grid-2">
+      <div class="field"><label>Fecha</label><input type="date" id="qp_date" value="${new Date().toISOString().split('T')[0]}"></div>
+      <div class="field"><label>Monto</label><input type="number" id="qp_amount" value="${p.fee.amount||0}"></div>
+    </div>
+    <div class="field"><label>Concepto</label><input id="qp_notes" placeholder="Ej: adelanto de mayo..."></div>
+    <div class="modal-actions"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="confirmQuickPayment()">Registrar</button></div>
+  `);
+}
+function confirmQuickPayment() {
+  const p = getPatient(currentPatientId);
+  p.sessions.push({ id: uuid(), date: document.getElementById('qp_date').value, time: '', duration: 0, notes: document.getElementById('qp_notes').value, interventions: '', homework: '', amount: parseFloat(document.getElementById('qp_amount').value)||0, paid: true, commissionPaid: false });
+  saveData(); closeModal(); renderTabContent(); renderSidebar(); toast('✓ Pago registrado');
+}
+
+// ==================== TAB: RECEIPTS ====================
+function renderReceipts(el, p) {
+  el.innerHTML = `
+    <div class="card">
+      <h3>Recibos emitidos</h3>
+      <p style="color: var(--text-light); font-size: 13px; margin-bottom: 12px;">Generá un recibo en PDF para cualquier sesión ya pagada o emití un presupuesto.</p>
+      <button class="btn btn-primary" onclick="newBudgetModal()">📝 Nuevo presupuesto</button>
+    </div>
+    <div class="card">
+      <h4>Sesiones pagadas · generar recibo</h4>
+      ${p.sessions.filter(s=>s.paid && (s.amount||0)>0).length === 0 ? '<p style="color: var(--text-light);">No hay sesiones pagadas aún.</p>' :
+        p.sessions.filter(s=>s.paid && (s.amount||0)>0).sort((a,b)=>new Date(b.date)-new Date(a.date)).map(s => `
+          <div class="alert-item success">
+            <div><strong>${formatDate(s.date)}</strong> · ${money(s.amount)}</div>
+            <button class="btn btn-primary" onclick="generateReceipt('${s.id}')">📄 Descargar recibo</button>
+          </div>
+        `).join('')}
+    </div>
+    ${p.receipts && p.receipts.length > 0 ? `
+      <div class="card">
+        <h4>Presupuestos generados</h4>
+        ${p.receipts.map(r => `<div class="alert-item info">
+          <div><strong>${escapeHtml(r.title)}</strong> · ${formatDate(r.date)} · ${money(r.amount)}</div>
+          <button class="btn" onclick="generateBudgetPDF('${r.id}')">📄 PDF</button>
+        </div>`).join('')}
+      </div>` : ''}
+  `;
+}
+
+function generateReceipt(sessionId) {
+  const p = getPatient(currentPatientId);
+  const s = p.sessions.find(x=>x.id===sessionId);
+  if (!s) return;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const num = 'R-' + (new Date(s.date).getTime().toString().slice(-6));
+  // Header
+  doc.setFillColor(45, 62, 80); doc.rect(0, 0, 210, 30, 'F');
+  doc.setTextColor(238, 232, 220); doc.setFont('helvetica','bold'); doc.setFontSize(20);
+  doc.text('RECIBO', 20, 20);
+  doc.setFontSize(10); doc.setFont('helvetica','normal');
+  doc.text(`N° ${num}`, 190, 20, {align:'right'});
+  // Body
+  doc.setTextColor(0,0,0); let y = 45;
+  doc.setFont('helvetica','bold'); doc.setFontSize(11);
+  doc.text(data.settings.therapistName || 'Psicólogo/a', 20, y);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9);
+  if (data.settings.license) doc.text(`Mat. ${data.settings.license}`, 20, y+5);
+  if (data.settings.taxId) doc.text(`CUIT: ${data.settings.taxId}`, 20, y+10);
+  if (data.settings.address) doc.text(data.settings.address, 20, y+15);
+  y = 80;
+  doc.setDrawColor(200); doc.line(20, y, 190, y); y += 10;
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Recibí de:', 20, y);
+  doc.setFont('helvetica','normal'); doc.text(p.personal.name, 50, y); y += 7;
+  if (p.personal.document) { doc.setFont('helvetica','bold'); doc.text('DNI:', 20, y); doc.setFont('helvetica','normal'); doc.text(p.personal.document, 50, y); y += 7; }
+  doc.setFont('helvetica','bold'); doc.text('Fecha:', 20, y); doc.setFont('helvetica','normal'); doc.text(formatDate(s.date), 50, y); y += 7;
+  doc.setFont('helvetica','bold'); doc.text('Concepto:', 20, y); doc.setFont('helvetica','normal'); doc.text(`Sesión de psicoterapia del ${formatDate(s.date)}`, 50, y); y += 14;
+  // Amount box
+  doc.setFillColor(238, 232, 220); doc.rect(20, y, 170, 20, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(45, 62, 80);
+  doc.text(`La suma de: ${money(s.amount)}`, 105, y+13, {align:'center'});
+  y += 40;
+  doc.setTextColor(0,0,0); doc.setFontSize(10);
+  doc.text(`En ______________________, a los ${new Date().getDate()} días del mes de ${new Date().toLocaleDateString('es-AR',{month:'long'})} de ${new Date().getFullYear()}.`, 20, y);
+  y += 30;
+  doc.line(110, y, 180, y);
+  doc.setFontSize(9); doc.text('Firma y aclaración', 145, y+5, {align:'center'});
+  doc.save(`recibo_${sanitize(p.personal.name)}_${s.date}.pdf`);
+  toast('✓ Recibo descargado');
+}
+
+function newBudgetModal() {
+  const p = getPatient(currentPatientId);
+  openModal(`
+    <h2>Nuevo presupuesto</h2>
+    <div class="field"><label>Título</label><input id="bud_title" placeholder="Ej: Proceso terapéutico abril-julio"></div>
+    <div class="grid-2">
+      <div class="field"><label>Fecha</label><input type="date" id="bud_date" value="${new Date().toISOString().split('T')[0]}"></div>
+      <div class="field"><label>Monto total</label><input type="number" id="bud_amount" value="${p.fee.amount||0}"></div>
+    </div>
+    <div class="field"><label>Detalle</label><textarea id="bud_detail" rows="4" placeholder="Qué incluye el presupuesto..."></textarea></div>
+    <div class="field"><label>Validez (días)</label><input type="number" id="bud_validity" value="30"></div>
+    <div class="modal-actions"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveBudget()">Guardar y descargar</button></div>
+  `);
+}
+
+function saveBudget() {
+  const p = getPatient(currentPatientId);
+  const b = { id: uuid(), title: document.getElementById('bud_title').value, date: document.getElementById('bud_date').value, amount: parseFloat(document.getElementById('bud_amount').value)||0, detail: document.getElementById('bud_detail').value, validity: parseInt(document.getElementById('bud_validity').value)||30 };
+  p.receipts.push(b); saveData(); closeModal(); generateBudgetPDF(b.id); renderTabContent();
+}
+
+function generateBudgetPDF(id) {
+  const p = getPatient(currentPatientId);
+  const b = p.receipts.find(x=>x.id===id);
+  if (!b) return;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFillColor(45, 62, 80); doc.rect(0, 0, 210, 30, 'F');
+  doc.setTextColor(238, 232, 220); doc.setFont('helvetica','bold'); doc.setFontSize(20);
+  doc.text('PRESUPUESTO', 20, 20);
+  doc.setFontSize(10); doc.setFont('helvetica','normal');
+  doc.text(formatDate(b.date), 190, 20, {align:'right'});
+  doc.setTextColor(0,0,0);
+  let y = 45;
+  doc.setFont('helvetica','bold'); doc.setFontSize(11);
+  doc.text(data.settings.therapistName || 'Psicólogo/a', 20, y);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9);
+  if (data.settings.license) doc.text(`Mat. ${data.settings.license}`, 20, y+5);
+  y = 75;
+  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.text('Para:', 20, y); doc.setFont('helvetica','normal'); doc.text(p.personal.name, 40, y); y += 10;
+  doc.setFont('helvetica','bold'); doc.text('Concepto:', 20, y); y += 6;
+  doc.setFont('helvetica','normal'); doc.setFontSize(10);
+  doc.text(b.title, 20, y); y += 8;
+  const lines = doc.splitTextToSize(b.detail||'', 170); doc.text(lines, 20, y); y += lines.length*5 + 10;
+  doc.setFillColor(238, 232, 220); doc.rect(20, y, 170, 20, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(45, 62, 80);
+  doc.text(`TOTAL: ${money(b.amount)}`, 105, y+13, {align:'center'});
+  y += 30; doc.setTextColor(0,0,0); doc.setFontSize(10);
+  doc.text(`Validez del presupuesto: ${b.validity} días desde la fecha.`, 20, y);
+  doc.save(`presupuesto_${sanitize(p.personal.name)}_${b.date}.pdf`);
+}
+
+// ==================== TAB: INSURANCE (per patient) ====================
+function renderInsurance(el, p) {
+  if (!p.insurance.payMode) p.insurance.payMode = p.insurance.provider ? 'os' : 'particular';
+  const mode = p.insurance.payMode;
+  el.innerHTML = `
+    <div class="card">
+      <h3>¿Cómo atiende este paciente?</h3>
+      <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+        <label class="checkbox-row" style="flex: 1; padding: 16px; border: 2px solid ${mode==='particular'?'var(--azul-profundo)':'var(--border)'}; border-radius: var(--radius-sm); cursor: pointer; background: ${mode==='particular'?'var(--arena-light)':'var(--blanco)'};">
+          <input type="radio" name="payMode" value="particular" ${mode==='particular'?'checked':''} onchange="updateField('insurance.payMode','particular'); if(this.checked){updateField('insurance.provider','');} renderTabContent();">
+          <div><strong style="font-size: 15px; color: var(--azul-profundo);">💵 Particular</strong><div style="font-size: 12px; color: var(--text-light); margin-top: 2px;">Paga directamente al profesional</div></div>
+        </label>
+        <label class="checkbox-row" style="flex: 1; padding: 16px; border: 2px solid ${mode==='os'?'var(--azul-profundo)':'var(--border)'}; border-radius: var(--radius-sm); cursor: pointer; background: ${mode==='os'?'var(--arena-light)':'var(--blanco)'};">
+          <input type="radio" name="payMode" value="os" ${mode==='os'?'checked':''} onchange="updateField('insurance.payMode','os'); renderTabContent();">
+          <div><strong style="font-size: 15px; color: var(--azul-profundo);">🏥 Obra social / Prepaga</strong><div style="font-size: 12px; color: var(--text-light); margin-top: 2px;">Se factura a la obra social</div></div>
+        </label>
+        <label class="checkbox-row" style="flex: 1; padding: 16px; border: 2px solid ${mode==='mixto'?'var(--azul-profundo)':'var(--border)'}; border-radius: var(--radius-sm); cursor: pointer; background: ${mode==='mixto'?'var(--arena-light)':'var(--blanco)'};">
+          <input type="radio" name="payMode" value="mixto" ${mode==='mixto'?'checked':''} onchange="updateField('insurance.payMode','mixto'); renderTabContent();">
+          <div><strong style="font-size: 15px; color: var(--azul-profundo);">🔀 Mixto</strong><div style="font-size: 12px; color: var(--text-light); margin-top: 2px;">OS + copago del paciente</div></div>
+        </label>
+      </div>
+
+      ${mode === 'particular' ? `
+        <div class="alert-item info"><div><strong>Este paciente es particular.</strong> Las sesiones no se facturan a ninguna obra social. Cobrás el monto completo que figura en la pestaña "Datos y motivo" → "Honorarios del paciente".</div></div>
+      ` : `
+        <div class="grid-3">
+          <div class="field"><label>Obra social / Prepaga</label>
+            <select onchange="updateField('insurance.provider', this.value)">
+              <option value="">— Elegí una —</option>
+              ${data.insurers.map(i => `<option ${p.insurance.provider===i.name?'selected':''}>${escapeHtml(i.name)}</option>`).join('')}
+            </select>
+            ${data.insurers.length === 0 ? '<div style="font-size: 11px; color: var(--warning); margin-top: 4px;">⚠ Primero cargá obras sociales en "Obras sociales" (menú lateral)</div>' : ''}
+          </div>
+          <div class="field"><label>N° de afiliado / plan</label><input value="${escapeHtml(p.insurance.planNumber||'')}" onchange="updateField('insurance.planNumber', this.value)"></div>
+          <div class="field"><label>Copago del paciente (${data.settings.currency})</label><input type="number" value="${p.insurance.copay||0}" onchange="updateField('insurance.copay', parseFloat(this.value)||0)"></div>
+        </div>
+      `}
+    </div>
+    ${mode === 'particular' ? '' : `
+    <div class="card">
+      <h3>Presentaciones / Reclamos a la obra social</h3>
+      <button class="btn btn-primary" onclick="addClaim()">+ Nueva presentación</button>
+      ${(p.insuranceClaims||[]).length === 0 ? '<p style="color: var(--text-light); margin-top: 12px;">No hay presentaciones cargadas.</p>' :
+        p.insuranceClaims.map(c => `<div class="card">
+          <div class="session-item-header">
+            <div class="date">Período ${c.period||'—'} · Presentado ${formatDate(c.presentedDate)}</div>
+            <button class="btn btn-danger" onclick="deleteClaim('${c.id}')">🗑</button>
+          </div>
+          <div class="grid-3">
+            <div class="field"><label>Período</label><input value="${escapeHtml(c.period||'')}" onchange="updateClaim('${c.id}','period',this.value)" placeholder="Ej: Abril 2026"></div>
+            <div class="field"><label>Fecha presentación</label><input type="date" value="${c.presentedDate||''}" onchange="updateClaim('${c.id}','presentedDate',this.value)"></div>
+            <div class="field"><label>Cantidad de sesiones</label><input type="number" value="${c.sessions||0}" onchange="updateClaim('${c.id}','sessions',parseInt(this.value)||0)"></div>
+            <div class="field"><label>Monto presentado</label><input type="number" value="${c.amount||0}" onchange="updateClaim('${c.id}','amount',parseFloat(this.value)||0)"></div>
+            <div class="field"><label>Estado</label>
+              <select onchange="updateClaim('${c.id}','status',this.value)">
+                <option value="pending" ${c.status==='pending'?'selected':''}>Pendiente</option>
+                <option value="paid" ${c.status==='paid'?'selected':''}>Cobrada</option>
+                <option value="rejected" ${c.status==='rejected'?'selected':''}>Rechazada</option>
+              </select>
+            </div>
+            <div class="field"><label>Fecha cobro / rechazo</label><input type="date" value="${c.paidDate||''}" onchange="updateClaim('${c.id}','paidDate',this.value)"></div>
+          </div>
+          <div class="grid-2">
+            <div class="field"><label>Monto efectivamente cobrado</label><input type="number" value="${c.amountPaid||0}" onchange="updateClaim('${c.id}','amountPaid',parseFloat(this.value)||0)"></div>
+            <div class="field"><label>Motivo rechazo (si aplica)</label><input value="${escapeHtml(c.rejectionReason||'')}" onchange="updateClaim('${c.id}','rejectionReason',this.value)"></div>
+          </div>
+        </div>`).join('')
+      }
+    </div>
+    `}
+  `;
+}
+function addClaim() { const p = getPatient(currentPatientId); p.insuranceClaims.push({ id: uuid(), period: '', presentedDate: new Date().toISOString().split('T')[0], sessions: 0, amount: 0, status: 'pending', paidDate: '', amountPaid: 0, rejectionReason: '' }); saveData(); renderTabContent(); }
+function updateClaim(id, field, value) { const p = getPatient(currentPatientId); const c = p.insuranceClaims.find(x=>x.id===id); if (!c) return; c[field] = value; saveData(); }
+function deleteClaim(id) { if (!confirm('¿Eliminar presentación?')) return; const p = getPatient(currentPatientId); p.insuranceClaims = p.insuranceClaims.filter(c=>c.id!==id); saveData(); renderTabContent(); }
+
+// ==================== TAB: GENOGRAM ====================
+let genogramState = { selectedNodeId: null, draggingNode: null, dragOffset: null, mode: 'select', connectFrom: null, connectType: 'partner' };
+
+function renderGenogram(el, p) {
+  el.innerHTML = `
+    <div class="card">
+      <h3>Genograma familiar</h3>
+      <div class="genogram-hint">
+        <strong>Cómo usar:</strong> Elegí un símbolo y hacé clic en el lienzo. Arrastrá para mover. Doble clic para editar. Para conectar, activá "Conectar", clic en una persona y luego en otra.
+      </div>
+      <div class="genogram-toolbar">
+        <button class="btn ${genogramState.mode==='select'?'btn-primary':''}" onclick="setGenogramMode('select')">🖱 Mover</button>
+        <button class="btn ${genogramState.mode==='add-male'?'btn-primary':''}" onclick="setGenogramMode('add-male')">▢ Hombre</button>
+        <button class="btn ${genogramState.mode==='add-female'?'btn-primary':''}" onclick="setGenogramMode('add-female')">◯ Mujer</button>
+        <button class="btn ${genogramState.mode==='add-other'?'btn-primary':''}" onclick="setGenogramMode('add-other')">◇ Otro</button>
+        <select id="connectType" style="width: auto;" onchange="genogramState.connectType=this.value">
+          <option value="partner">Pareja</option><option value="married">Casados</option><option value="separated">Separados</option><option value="divorced">Divorciados</option><option value="child">Hijo/a de</option><option value="close">Cercanía</option><option value="conflict">Conflicto</option><option value="distant">Distante</option><option value="cutoff">Cortada</option>
+        </select>
+        <button class="btn ${genogramState.mode==='connect'?'btn-primary':''}" onclick="setGenogramMode('connect')">🔗 Conectar</button>
+        <button class="btn btn-danger" onclick="deleteSelectedNode()">🗑 Borrar</button>
+        <button class="btn" onclick="clearGenogram()">✖ Limpiar todo</button>
+        <button class="btn" onclick="exportGenogramImage()">📷 PNG</button>
+      </div>
+      <svg id="genogramCanvas" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+  `;
+  drawGenogram(); setupGenogramEvents();
+}
+
+function setGenogramMode(mode) { genogramState.mode = mode; genogramState.connectFrom = null; renderTabContent(); }
+
+function drawGenogram() {
+  const p = getPatient(currentPatientId);
+  const svg = document.getElementById('genogramCanvas');
+  if (!svg) return;
+  svg.setAttribute('viewBox', '0 0 1000 600');
+  svg.innerHTML = '';
+  for (const edge of p.genogram.edges) {
+    const from = p.genogram.nodes.find(n => n.id === edge.from);
+    const to = p.genogram.nodes.find(n => n.id === edge.to);
+    if (from && to) drawEdge(svg, from, to, edge);
+  }
+  for (const node of p.genogram.nodes) drawNode(svg, node);
+}
+
+function drawNode(svg, node) {
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.setAttribute('class', 'genogram-node'); g.setAttribute('data-id', node.id);
+  g.setAttribute('transform', `translate(${node.x},${node.y})`);
+  const selected = genogramState.selectedNodeId === node.id;
+  const connectFrom = genogramState.connectFrom === node.id;
+  const strokeColor = connectFrom ? '#4a7c59' : (selected ? '#c89b3c' : '#2d3e50');
+  const strokeW = (selected || connectFrom) ? 3 : 2;
+  let shape;
+  if (node.gender === 'M') { shape = document.createElementNS('http://www.w3.org/2000/svg','rect'); shape.setAttribute('x',-24); shape.setAttribute('y',-24); shape.setAttribute('width',48); shape.setAttribute('height',48); shape.setAttribute('fill','#c4d6e0'); }
+  else if (node.gender === 'F') { shape = document.createElementNS('http://www.w3.org/2000/svg','circle'); shape.setAttribute('cx',0); shape.setAttribute('cy',0); shape.setAttribute('r',26); shape.setAttribute('fill','#dde7ec'); }
+  else { shape = document.createElementNS('http://www.w3.org/2000/svg','rect'); shape.setAttribute('x',-24); shape.setAttribute('y',-24); shape.setAttribute('width',48); shape.setAttribute('height',48); shape.setAttribute('fill','#eee8dc'); shape.setAttribute('transform','rotate(45)'); }
+  shape.setAttribute('stroke', strokeColor); shape.setAttribute('stroke-width', strokeW); g.appendChild(shape);
+  if (node.deceased) {
+    const l1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    l1.setAttribute('x1',-30); l1.setAttribute('y1',-30); l1.setAttribute('x2',30); l1.setAttribute('y2',30); l1.setAttribute('stroke','#2d3e50'); l1.setAttribute('stroke-width',2); g.appendChild(l1);
+    const l2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    l2.setAttribute('x1',30); l2.setAttribute('y1',-30); l2.setAttribute('x2',-30); l2.setAttribute('y2',30); l2.setAttribute('stroke','#2d3e50'); l2.setAttribute('stroke-width',2); g.appendChild(l2);
+  }
+  if (node.isPatient) {
+    const inner = document.createElementNS('http://www.w3.org/2000/svg', node.gender==='F'?'circle':'rect');
+    if (node.gender==='F') { inner.setAttribute('cx',0); inner.setAttribute('cy',0); inner.setAttribute('r',30); }
+    else { inner.setAttribute('x',-30); inner.setAttribute('y',-30); inner.setAttribute('width',60); inner.setAttribute('height',60); if (node.gender!=='M') inner.setAttribute('transform','rotate(45)'); }
+    inner.setAttribute('fill','none'); inner.setAttribute('stroke',strokeColor); inner.setAttribute('stroke-width',1.5); g.appendChild(inner);
+  }
+  if (node.age) {
+    const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('text-anchor','middle'); t.setAttribute('y',5); t.setAttribute('font-size',14); t.setAttribute('font-weight','bold'); t.setAttribute('fill','#2d3e50'); t.textContent = node.age; g.appendChild(t);
+  }
+  const nameT = document.createElementNS('http://www.w3.org/2000/svg','text');
+  nameT.setAttribute('text-anchor','middle'); nameT.setAttribute('y',48); nameT.setAttribute('font-size',13); nameT.setAttribute('fill','#2d3e50'); nameT.setAttribute('font-weight','500'); nameT.textContent = node.name || '(sin nombre)'; g.appendChild(nameT);
+  if (node.role) {
+    const r = document.createElementNS('http://www.w3.org/2000/svg','text');
+    r.setAttribute('text-anchor','middle'); r.setAttribute('y',64); r.setAttribute('font-size',11); r.setAttribute('fill','#6b7280'); r.textContent = node.role; g.appendChild(r);
+  }
+  svg.appendChild(g);
+}
+
+function drawEdge(svg, from, to, edge) {
+  const type = edge.type;
+  if (type === 'child') {
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    const midY = (from.y + to.y)/2;
+    path.setAttribute('d', `M ${from.x},${from.y+30} L ${from.x},${midY} L ${to.x},${midY} L ${to.x},${to.y-30}`);
+    path.setAttribute('stroke','#2d3e50'); path.setAttribute('stroke-width',1.5); path.setAttribute('fill','none');
+    svg.appendChild(path); return;
+  }
+  const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+  line.setAttribute('x1',from.x); line.setAttribute('y1',from.y); line.setAttribute('x2',to.x); line.setAttribute('y2',to.y);
+  let stroke = '#2d3e50', width = 2, dash = '';
+  if (type === 'married') width = 3;
+  else if (type === 'separated') dash = '6,3';
+  else if (type === 'divorced') dash = '10,3';
+  else if (type === 'close') { stroke = '#4a7c59'; width = 4; }
+  else if (type === 'distant') { stroke = '#6b7280'; dash = '3,4'; }
+  else if (type === 'conflict') {
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    const dx = to.x - from.x, dy = to.y - from.y, steps = 8;
+    let d = `M ${from.x},${from.y}`;
+    for (let i = 1; i <= steps; i++) {
+      const t = i/steps, x = from.x + dx*t, y = from.y + dy*t;
+      const nx = -dy/Math.hypot(dx,dy) * 6 * (i%2===0?1:-1);
+      const ny = dx/Math.hypot(dx,dy) * 6 * (i%2===0?1:-1);
+      d += ` L ${x+nx},${y+ny}`;
+    }
+    d += ` L ${to.x},${to.y}`;
+    path.setAttribute('d',d); path.setAttribute('stroke','#a84242'); path.setAttribute('stroke-width',2); path.setAttribute('fill','none');
+    svg.appendChild(path); return;
+  }
+  line.setAttribute('stroke',stroke); line.setAttribute('stroke-width',width); if (dash) line.setAttribute('stroke-dasharray',dash);
+  svg.appendChild(line);
+}
+
+function setupGenogramEvents() {
+  const svg = document.getElementById('genogramCanvas');
+  if (!svg) return;
+  svg.addEventListener('click', (e) => {
+    if (genogramState.draggingNode) return;
+    const pt = getSVGPoint(svg, e);
+    const nodeEl = e.target.closest('.genogram-node');
+    const nodeId = nodeEl?.getAttribute('data-id');
+    const p = getPatient(currentPatientId);
+    if (['add-male','add-female','add-other'].includes(genogramState.mode) && !nodeId) {
+      const gender = genogramState.mode === 'add-male' ? 'M' : genogramState.mode === 'add-female' ? 'F' : 'X';
+      p.genogram.nodes.push({ id: uuid(), x: pt.x, y: pt.y, gender, name: '', age: '', role: '', notes: '', deceased: false, isPatient: p.genogram.nodes.length === 0 });
+      saveData(); genogramState.mode = 'select'; renderTabContent(); return;
+    }
+    if (genogramState.mode === 'connect' && nodeId) {
+      if (!genogramState.connectFrom) { genogramState.connectFrom = nodeId; drawGenogram(); }
+      else if (genogramState.connectFrom !== nodeId) {
+        p.genogram.edges.push({ id: uuid(), from: genogramState.connectFrom, to: nodeId, type: genogramState.connectType });
+        genogramState.connectFrom = null; saveData(); drawGenogram();
+      }
+      return;
+    }
+    genogramState.selectedNodeId = nodeId || null; drawGenogram();
+  });
+  svg.addEventListener('dblclick', (e) => {
+    const nodeEl = e.target.closest('.genogram-node');
+    if (nodeEl) editNodeModal(nodeEl.getAttribute('data-id'));
+  });
+  svg.addEventListener('mousedown', (e) => {
+    if (genogramState.mode !== 'select') return;
+    const nodeEl = e.target.closest('.genogram-node'); if (!nodeEl) return;
+    const nodeId = nodeEl.getAttribute('data-id');
+    const p = getPatient(currentPatientId);
+    const node = p.genogram.nodes.find(n => n.id === nodeId); if (!node) return;
+    const pt = getSVGPoint(svg, e);
+    genogramState.draggingNode = nodeId; genogramState.dragOffset = { x: pt.x - node.x, y: pt.y - node.y }; genogramState.selectedNodeId = nodeId;
+    e.preventDefault();
+  });
+  svg.addEventListener('mousemove', (e) => {
+    if (!genogramState.draggingNode) return;
+    const p = getPatient(currentPatientId);
+    const node = p.genogram.nodes.find(n => n.id === genogramState.draggingNode); if (!node) return;
+    const pt = getSVGPoint(svg, e);
+    node.x = pt.x - genogramState.dragOffset.x; node.y = pt.y - genogramState.dragOffset.y;
+    drawGenogram();
+  });
+  window.addEventListener('mouseup', () => { if (genogramState.draggingNode) { genogramState.draggingNode = null; saveData(); } });
+}
+
+function getSVGPoint(svg, evt) {
+  const rect = svg.getBoundingClientRect(); const vb = svg.viewBox.baseVal;
+  return { x: (evt.clientX - rect.left) * (vb.width / rect.width), y: (evt.clientY - rect.top) * (vb.height / rect.height) };
+}
+
+function editNodeModal(nodeId) {
+  const p = getPatient(currentPatientId);
+  const n = p.genogram.nodes.find(x => x.id === nodeId); if (!n) return;
+  openModal(`
+    <h2>Editar persona</h2>
+    <div class="field"><label>Nombre</label><input id="ng_name" value="${escapeHtml(n.name||'')}"></div>
+    <div class="grid-2">
+      <div class="field"><label>Edad</label><input id="ng_age" value="${escapeHtml(n.age||'')}"></div>
+      <div class="field"><label>Género</label>
+        <select id="ng_gender"><option value="F" ${n.gender==='F'?'selected':''}>Mujer</option><option value="M" ${n.gender==='M'?'selected':''}>Hombre</option><option value="X" ${n.gender==='X'?'selected':''}>Otro</option></select>
+      </div>
+    </div>
+    <div class="field"><label>Rol / parentesco</label><input id="ng_role" value="${escapeHtml(n.role||'')}" placeholder="madre, padre, hermano..."></div>
+    <div class="field"><label>Notas</label><textarea id="ng_notes" rows="3">${escapeHtml(n.notes||'')}</textarea></div>
+    <div class="row">
+      <label class="checkbox-row"><input type="checkbox" id="ng_deceased" ${n.deceased?'checked':''}> Fallecido/a</label>
+      <label class="checkbox-row"><input type="checkbox" id="ng_isPatient" ${n.isPatient?'checked':''}> Paciente identificado</label>
+    </div>
+    <div class="modal-actions"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveNodeEdit('${nodeId}')">Guardar</button></div>
+  `);
+}
+function saveNodeEdit(nodeId) {
+  const p = getPatient(currentPatientId);
+  const n = p.genogram.nodes.find(x => x.id === nodeId); if (!n) return;
+  n.name = document.getElementById('ng_name').value; n.age = document.getElementById('ng_age').value; n.gender = document.getElementById('ng_gender').value;
+  n.role = document.getElementById('ng_role').value; n.notes = document.getElementById('ng_notes').value; n.deceased = document.getElementById('ng_deceased').checked;
+  const isP = document.getElementById('ng_isPatient').checked; if (isP) p.genogram.nodes.forEach(x => x.isPatient = false); n.isPatient = isP;
+  saveData(); closeModal(); drawGenogram();
+}
+function deleteSelectedNode() {
+  if (!genogramState.selectedNodeId) { toast('Seleccioná primero'); return; }
+  const p = getPatient(currentPatientId);
+  p.genogram.nodes = p.genogram.nodes.filter(n => n.id !== genogramState.selectedNodeId);
+  p.genogram.edges = p.genogram.edges.filter(e => e.from !== genogramState.selectedNodeId && e.to !== genogramState.selectedNodeId);
+  genogramState.selectedNodeId = null; saveData(); drawGenogram();
+}
+function clearGenogram() { if (!confirm('¿Borrar todo el genograma?')) return; const p = getPatient(currentPatientId); p.genogram = { nodes: [], edges: [] }; saveData(); drawGenogram(); }
+
+function exportGenogramImage(returnBlob) {
+  return new Promise((resolve) => {
+    const svg = document.getElementById('genogramCanvas');
+    if (!svg) { resolve(null); return; }
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const svgBlob = new Blob(['<?xml version="1.0" encoding="UTF-8"?>' + svgData], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(svgBlob);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 2000; canvas.height = 1200;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      canvas.toBlob((blob) => {
+        if (returnBlob) resolve(blob);
+        else { const p = getPatient(currentPatientId); saveAs(blob, `genograma_${sanitize(p.personal.name)}.png`); resolve(blob); }
+      }, 'image/png');
+    };
+    img.src = url;
+  });
+}
+
+// ==================== TAB: GOALS (objetivos del tratamiento) ====================
+function renderGoals(el, p) {
+  const statusLabels = { pending: 'Pendiente', in_progress: 'En progreso', achieved: 'Logrado', reformulated: 'Reformulado', archived: 'Archivado' };
+  const statusColors = { pending: 'warning', in_progress: 'info', achieved: 'success', reformulated: 'info', archived: 'warning' };
+  const total = p.goals.length;
+  const achieved = p.goals.filter(g => g.status === 'achieved').length;
+  const pct = total > 0 ? Math.round((achieved/total)*100) : 0;
+
+  el.innerHTML = `
+    <div class="card">
+      <h3>🎯 Objetivos del tratamiento</h3>
+      <p style="color: var(--text-light); font-size: 13.5px; line-height: 1.6; margin-bottom: 14px;">Definí objetivos claros al inicio del proceso y actualizá su estado a medida que avanza. Te ayuda a vos (y al paciente, si se lo mostrás) a ver lo invisible del progreso.</p>
+      ${total > 0 ? `
+        <div style="margin-bottom: 16px;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px;">
+            <span><strong>${achieved}</strong> logrados de ${total} objetivos</span><span>${pct}%</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" style="width: ${pct}%;"></div></div>
+        </div>
+      ` : ''}
+      <button class="btn btn-primary" onclick="addGoal()">+ Nuevo objetivo</button>
+    </div>
+
+    ${p.goals.length === 0 ? '<p style="color: var(--text-light); text-align: center; padding: 40px;">Aún no hay objetivos cargados. Ejemplos: "reducir crisis de pánico", "mejorar vínculo con hija", "trabajar duelo por mamá", "sostener límites laborales".</p>' :
+      p.goals.map(g => `<div class="card">
+        <div class="session-item-header">
+          <div style="flex: 1;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span class="status ${statusColors[g.status]||'info'}">${statusLabels[g.status]||g.status}</span>
+              <span style="font-size: 12px; color: var(--text-light);">Creado ${formatDate(g.createdAt)}${g.achievedAt?' · Logrado '+formatDate(g.achievedAt):''}</span>
+            </div>
+            <div style="margin-top: 8px; font-size: 16px; font-weight: 500; color: var(--azul-profundo);">${escapeHtml(g.text)}</div>
+          </div>
+          <button class="btn btn-danger" onclick="deleteGoal('${g.id}')">🗑</button>
+        </div>
+        <div class="grid-2">
+          <div class="field"><label>Estado</label>
+            <select onchange="updateGoal('${g.id}','status',this.value); if(this.value==='achieved' && !getPatient(currentPatientId).goals.find(x=>x.id==='${g.id}').achievedAt){updateGoal('${g.id}','achievedAt', new Date().toISOString().split('T')[0]);} renderTabContent();">
+              ${Object.entries(statusLabels).map(([k,v])=>`<option value="${k}" ${g.status===k?'selected':''}>${v}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field"><label>Fecha de logro (si aplica)</label><input type="date" value="${g.achievedAt||''}" onchange="updateGoal('${g.id}','achievedAt',this.value)"></div>
+        </div>
+        <div class="field"><label>Texto del objetivo</label><input value="${escapeHtml(g.text)}" onchange="updateGoal('${g.id}','text',this.value)"></div>
+        <div class="field"><label>Notas / seguimiento</label><textarea rows="2" onchange="updateGoal('${g.id}','notes',this.value)">${escapeHtml(g.notes||'')}</textarea></div>
+      </div>`).join('')}
+  `;
+}
+function addGoal() {
+  openModal(`<h2>Nuevo objetivo del tratamiento</h2>
+    <div class="field"><label>Objetivo (ej: reducir crisis de ansiedad, mejorar autoestima...)</label><textarea id="newGoalText" rows="3" autofocus></textarea></div>
+    <div class="modal-actions"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="confirmAddGoal()">Agregar</button></div>`);
+  setTimeout(()=>document.getElementById('newGoalText')?.focus(),100);
+}
+function confirmAddGoal() {
+  const text = document.getElementById('newGoalText').value.trim();
+  if (!text) return toast('Escribí el objetivo');
+  const p = getPatient(currentPatientId);
+  p.goals.push({ id: uuid(), text, status: 'pending', createdAt: new Date().toISOString().split('T')[0], achievedAt: '', notes: '' });
+  saveData(); closeModal(); renderTabContent();
+}
+function updateGoal(id, field, value) { const p = getPatient(currentPatientId); const g = p.goals.find(x=>x.id===id); if(!g) return; g[field]=value; saveData(); }
+function deleteGoal(id) { if (!confirm('¿Eliminar objetivo?')) return; const p = getPatient(currentPatientId); p.goals = p.goals.filter(g=>g.id!==id); saveData(); renderTabContent(); }
+
+// ==================== TAB: NETWORK (red interdisciplinar) ====================
+function renderNetwork(el, p) {
+  el.innerHTML = `
+    <div class="card">
+      <h3>🔗 Red profesional del paciente</h3>
+      <p style="color: var(--text-light); font-size: 13.5px; line-height: 1.6; margin-bottom: 14px;">Otros profesionales que atienden al mismo paciente: psiquiatra, médico de cabecera, nutricionista, neurólogo, etc. Clave para coordinar tratamientos y evitar interacciones.</p>
+      <button class="btn btn-primary" onclick="addNetworkMember()">+ Agregar profesional</button>
+    </div>
+    ${p.network.length === 0 ? '<p style="color: var(--text-light); text-align: center; padding: 30px;">Aún no agregaste a nadie. Útil especialmente cuando el paciente está medicado o tiene tratamientos paralelos.</p>' :
+      p.network.map(n => `<div class="card">
+        <div class="session-item-header">
+          <div>
+            <div style="font-size: 16px; font-weight: 600; color: var(--azul-profundo);">${escapeHtml(n.name)}</div>
+            <div style="color: var(--text-light); font-size: 13px;">${escapeHtml(n.role)}</div>
+          </div>
+          <button class="btn btn-danger" onclick="deleteNetworkMember('${n.id}')">🗑</button>
+        </div>
+        <div class="grid-2">
+          <div class="field"><label>Nombre</label><input value="${escapeHtml(n.name)}" onchange="updateNetworkMember('${n.id}','name',this.value); renderTabContent();"></div>
+          <div class="field"><label>Rol</label>
+            <select onchange="updateNetworkMember('${n.id}','role',this.value); renderTabContent();">
+              ${['Psiquiatra','Médico/a de cabecera','Neurólogo/a','Nutricionista','Endocrinólogo/a','Ginecólogo/a','Pediatra','Fonoaudiólogo/a','Terapeuta ocupacional','Kinesiólogo/a','Psicopedagogo/a','Trabajador/a social','Acompañante terapéutico','Otro'].map(r=>`<option ${n.role===r?'selected':''}>${r}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field"><label>Teléfono</label><input value="${escapeHtml(n.phone||'')}" onchange="updateNetworkMember('${n.id}','phone',this.value)"></div>
+          <div class="field"><label>Email</label><input value="${escapeHtml(n.email||'')}" onchange="updateNetworkMember('${n.id}','email',this.value)"></div>
+        </div>
+        <div class="field"><label>Medicación / tratamiento indicado (si aplica)</label><textarea rows="2" onchange="updateNetworkMember('${n.id}','medications',this.value)">${escapeHtml(n.medications||'')}</textarea></div>
+        <div class="field"><label>Notas / coordinación</label><textarea rows="2" onchange="updateNetworkMember('${n.id}','notes',this.value)">${escapeHtml(n.notes||'')}</textarea></div>
+      </div>`).join('')}
+  `;
+}
+function addNetworkMember() {
+  const p = getPatient(currentPatientId);
+  p.network.push({ id: uuid(), name: '', role: 'Psiquiatra', phone: '', email: '', medications: '', notes: '' });
+  saveData(); renderTabContent();
+}
+function updateNetworkMember(id, field, value) { const p = getPatient(currentPatientId); const n = p.network.find(x=>x.id===id); if(!n) return; n[field]=value; saveData(); }
+function deleteNetworkMember(id) { if(!confirm('¿Eliminar este profesional?')) return; const p = getPatient(currentPatientId); p.network = p.network.filter(n=>n.id!==id); saveData(); renderTabContent(); }
+
+// ==================== VIEW: WAITLIST ====================
+function renderWaitlist(el) {
+  el.innerHTML = `
+    <div class="tab-content">
+      <h1 style="color: var(--azul-profundo); font-size: 36px; font-weight: 400;">⏳ Lista de espera</h1>
+      <p style="color: var(--text-light); margin-bottom: 24px;">Personas que quieren empezar pero no tenés lugar ahora. Cuando alguien cancele, usá el botón para ofrecer el turno libre.</p>
+
+      <div class="card">
+        <button class="btn btn-primary" onclick="addWaitlistEntry()">+ Agregar a la lista</button>
+      </div>
+
+      ${data.waitlist.length === 0 ? '<div class="card" style="text-align: center; padding: 40px;"><p style="color: var(--text-light);">Lista vacía. Cuando alguien te pide turno y no tenés lugar, agregalo acá. Cuando se libere un horario, podés ofrecerlo con un clic.</p></div>' :
+        data.waitlist.map(w => `<div class="card">
+          <div class="session-item-header">
+            <div>
+              <div style="font-size: 16px; font-weight: 600; color: var(--azul-profundo);">${escapeHtml(w.name)} ${w.priority?'<span class="pill" style="background: var(--warning); color: white; margin-left: 6px;">⚠ Prioridad alta</span>':''}</div>
+              <div style="color: var(--text-light); font-size: 12px;">En espera desde ${formatDate(w.createdAt)} · ${escapeHtml(w.phone||'sin teléfono')}</div>
+            </div>
+            <div>
+              ${w.phone ? `<button class="btn btn-secondary" onclick="offerSlotToWaitlist('${w.id}')">💬 Ofrecer turno</button>` : ''}
+              <button class="btn" onclick="convertWaitlistToPatient('${w.id}')">→ Pasar a paciente</button>
+              <button class="btn btn-danger" onclick="deleteWaitlistEntry('${w.id}')">🗑</button>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="field"><label>Nombre</label><input value="${escapeHtml(w.name)}" onchange="updateWaitlistEntry('${w.id}','name',this.value); renderMain();"></div>
+            <div class="field"><label>Teléfono</label><input value="${escapeHtml(w.phone||'')}" onchange="updateWaitlistEntry('${w.id}','phone',this.value)"></div>
+            <div class="field"><label>Días preferidos</label><input value="${escapeHtml(w.preferredDays||'')}" onchange="updateWaitlistEntry('${w.id}','preferredDays',this.value)" placeholder="Ej: martes y jueves"></div>
+            <div class="field"><label>Horarios preferidos</label><input value="${escapeHtml(w.preferredTimes||'')}" onchange="updateWaitlistEntry('${w.id}','preferredTimes',this.value)" placeholder="Ej: tarde, después de las 17hs"></div>
+          </div>
+          <div class="field"><label>Motivo de consulta breve</label><textarea rows="2" onchange="updateWaitlistEntry('${w.id}','motive',this.value)">${escapeHtml(w.motive||'')}</textarea></div>
+          <div class="field"><label>Notas</label><textarea rows="2" onchange="updateWaitlistEntry('${w.id}','notes',this.value)">${escapeHtml(w.notes||'')}</textarea></div>
+          <div class="checkbox-row"><input type="checkbox" id="pri_${w.id}" ${w.priority?'checked':''} onchange="updateWaitlistEntry('${w.id}','priority',this.checked); renderMain();"><label for="pri_${w.id}" style="margin: 0; text-transform: none; letter-spacing: normal; font-size: 13.5px; color: var(--text);">Marcar como prioridad alta</label></div>
+        </div>`).join('')}
+    </div>
+  `;
+}
+function addWaitlistEntry() {
+  data.waitlist.push({ id: uuid(), name: '', phone: '', preferredDays: '', preferredTimes: '', motive: '', notes: '', priority: false, createdAt: new Date().toISOString().split('T')[0] });
+  saveData(); renderMain();
+}
+function updateWaitlistEntry(id, field, value) { const w = data.waitlist.find(x=>x.id===id); if(!w) return; w[field]=value; saveData(); }
+function deleteWaitlistEntry(id) { if(!confirm('¿Eliminar de la lista?')) return; data.waitlist = data.waitlist.filter(w=>w.id!==id); saveData(); renderMain(); }
+function convertWaitlistToPatient(id) {
+  const w = data.waitlist.find(x=>x.id===id); if(!w || !w.name) { toast('Falta el nombre'); return; }
+  const p = createPatient(w.name);
+  p.personal.phone = w.phone||'';
+  p.personal.motiveOfConsultation = w.motive||'';
+  data.waitlist = data.waitlist.filter(x=>x.id!==id);
+  saveData(); selectPatient(p.id); toast('✓ Pasado a paciente');
+}
+function offerSlotToWaitlist(id) {
+  const w = data.waitlist.find(x=>x.id===id);
+  if (!w || !w.phone) return;
+  const text = `Hola ${w.name.split(' ')[0]}! Se liberó un horario en mi consultorio. Si te interesa coordinar sesión avísame y te paso opciones. Saludos!`;
+  const phone = w.phone.replace(/[^0-9]/g,'');
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
+}
+
+// ==================== VIEW: WHATSAPP TEMPLATES ====================
+function renderTemplates(el) {
+  el.innerHTML = `
+    <div class="tab-content">
+      <h1 style="color: var(--azul-profundo); font-size: 36px; font-weight: 400;">💬 Plantillas de WhatsApp</h1>
+      <p style="color: var(--text-light); margin-bottom: 24px;">Mensajes pre-escritos para los momentos difíciles (aumento de honorarios, cancelaciones, reconexión). Editá a tu gusto. Las variables <code>{nombre}</code>, <code>{fecha}</code>, <code>{hora}</code>, <code>{monto}</code> se reemplazan automáticamente cuando las usás desde un paciente.</p>
+
+      <div class="card">
+        <button class="btn btn-primary" onclick="addTemplate()">+ Nueva plantilla</button>
+        <button class="btn" onclick="restoreDefaultTemplates()">↺ Restaurar plantillas por defecto</button>
+      </div>
+
+      ${(data.settings.whatsappTemplates||[]).map(t => `<div class="card">
+        <div class="session-item-header">
+          <div style="font-size: 16px; font-weight: 600; color: var(--azul-profundo);">${escapeHtml(t.title)}</div>
+          <div>
+            <button class="btn btn-secondary" onclick="useTemplateModal('${t.id}')">📤 Usar</button>
+            <button class="btn btn-danger" onclick="deleteTemplate('${t.id}')">🗑</button>
+          </div>
+        </div>
+        <div class="field"><label>Título</label><input value="${escapeHtml(t.title)}" onchange="updateTemplate('${t.id}','title',this.value); renderMain();"></div>
+        <div class="field"><label>Mensaje</label><textarea rows="5" onchange="updateTemplate('${t.id}','content',this.value)">${escapeHtml(t.content)}</textarea></div>
+      </div>`).join('')}
+    </div>
+  `;
+}
+function addTemplate() { data.settings.whatsappTemplates.push({ id: 't'+Date.now(), title: 'Nueva plantilla', content: 'Hola {nombre}!' }); saveData(); renderMain(); }
+function updateTemplate(id, field, value) { const t = data.settings.whatsappTemplates.find(x=>x.id===id); if(!t) return; t[field]=value; saveData(); }
+function deleteTemplate(id) { if(!confirm('¿Eliminar plantilla?')) return; data.settings.whatsappTemplates = data.settings.whatsappTemplates.filter(t=>t.id!==id); saveData(); renderMain(); }
+function restoreDefaultTemplates() { if(!confirm('¿Restaurar plantillas por defecto? Las tuyas personalizadas se mantienen.')) return; const existing = data.settings.whatsappTemplates.map(t=>t.title); for (const d of defaultTemplates()) { if (!existing.includes(d.title)) data.settings.whatsappTemplates.push(d); } saveData(); renderMain(); }
+
+function useTemplateModal(templateId) {
+  const t = data.settings.whatsappTemplates.find(x=>x.id===templateId);
+  if (!t) return;
+  const patientsOpts = data.patients.map(p => `<option value="${p.id}">${escapeHtml(p.personal.name)}</option>`).join('');
+  openModal(`<h2>Enviar: ${escapeHtml(t.title)}</h2>
+    <div class="field"><label>Paciente (para completar variables)</label>
+      <select id="tpl_patient" onchange="refreshTemplatePreview('${templateId}')">
+        <option value="">— Elegí un paciente —</option>${patientsOpts}
+      </select>
+    </div>
+    <div class="field"><label>Variables adicionales (opcionales)</label>
+      <div class="grid-2">
+        <input id="tpl_fecha" placeholder="{fecha} (ej: lunes 20/11)" oninput="refreshTemplatePreview('${templateId}')">
+        <input id="tpl_hora" placeholder="{hora} (ej: 15:00)" oninput="refreshTemplatePreview('${templateId}')">
+      </div>
+    </div>
+    <div class="field"><label>Vista previa (editable)</label><textarea id="tpl_preview" rows="8">${escapeHtml(t.content)}</textarea></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="sendTemplate('${templateId}')">📤 Abrir WhatsApp</button>
+    </div>
+  `);
+}
+function refreshTemplatePreview(templateId) {
+  const t = data.settings.whatsappTemplates.find(x=>x.id===templateId);
+  const pid = document.getElementById('tpl_patient').value;
+  const p = pid ? getPatient(pid) : null;
+  let msg = t.content;
+  if (p) { msg = msg.replace(/\{nombre\}/g, p.personal.name.split(' ')[0]).replace(/\{monto\}/g, money(p.fee.amount||0)); }
+  const f = document.getElementById('tpl_fecha').value; if (f) msg = msg.replace(/\{fecha\}/g, f);
+  const h = document.getElementById('tpl_hora').value; if (h) msg = msg.replace(/\{hora\}/g, h);
+  document.getElementById('tpl_preview').value = msg;
+}
+function sendTemplate(templateId) {
+  const pid = document.getElementById('tpl_patient').value;
+  const p = pid ? getPatient(pid) : null;
+  if (!p || !p.personal.phone) { toast('Elegí un paciente con teléfono cargado'); return; }
+  const msg = document.getElementById('tpl_preview').value;
+  const phone = p.personal.phone.replace(/[^0-9]/g,'');
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+  closeModal();
+}
+
+// ==================== MODALS ====================
+function openModal(html) { document.getElementById('modalRoot').innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">${html}</div></div>`; }
+function closeModal() { document.getElementById('modalRoot').innerHTML = ''; }
+
+function openSettings() {
+  const s = data.settings;
+  openModal(`
+    <h2>Ajustes</h2>
+    <div class="field"><label>Tu nombre profesional</label><input id="set_name" value="${escapeHtml(s.therapistName)}"></div>
+    <div class="grid-2">
+      <div class="field"><label>Matrícula</label><input id="set_license" value="${escapeHtml(s.license)}"></div>
+      <div class="field"><label>CUIT / CUIL</label><input id="set_tax" value="${escapeHtml(s.taxId||'')}"></div>
+    </div>
+    <div class="field"><label>Dirección del consultorio</label><input id="set_address" value="${escapeHtml(s.address||'')}"></div>
+    <div class="grid-2">
+      <div class="field"><label>Símbolo de moneda</label><input id="set_currency" value="${escapeHtml(s.currency)}"></div>
+      <div class="field"><label>Objetivo mensual de ingresos</label><input id="set_goal" type="number" value="${s.monthlyGoal||0}"></div>
+    </div>
+    <div class="divider"></div>
+    <h3 style="font-size: 16px; color: var(--azul-profundo); margin-bottom: 12px;">✨ IA asistente (opcional)</h3>
+    <p style="color: var(--text-light); font-size: 12.5px; line-height: 1.5; margin-bottom: 12px;">Pegá tu API key de OpenAI para poder estructurar tus notas crudas en formato clínico con un clic. Es opcional — sin esto, PsiOffice funciona completo. <a href="https://platform.openai.com/api-keys" target="_blank" style="color: var(--azul-medio);">Sacar una key →</a> (gratis sacarla, pagás centavos por uso).</p>
+    <div class="field"><label>OpenAI API Key</label><input type="password" id="set_ai_key" value="${escapeHtml(s.openaiKey||'')}" placeholder="sk-proj-..."><div style="font-size: 11px; color: var(--text-light); margin-top: 4px;">Se guarda encriptada en tu perfil. Nunca sale de tu computadora excepto cuando mandás una nota a estructurar.</div></div>
+    <div class="divider"></div>
+    <h3 style="font-size: 16px; color: var(--azul-profundo); margin-bottom: 12px;">🏖️ Modo vacaciones</h3>
+    <div class="checkbox-row" style="margin-bottom: 12px;"><input type="checkbox" id="set_vac_active" ${s.vacation?.active?'checked':''}><label for="set_vac_active" style="margin: 0; text-transform: none; letter-spacing: normal; font-size: 14px; color: var(--text);">Activar modo vacaciones</label></div>
+    <div class="grid-2">
+      <div class="field"><label>Desde</label><input type="date" id="set_vac_from" value="${s.vacation?.from||''}"></div>
+      <div class="field"><label>Hasta</label><input type="date" id="set_vac_to" value="${s.vacation?.to||''}"></div>
+    </div>
+    <div class="field"><label>Mensaje para mandar a pacientes</label><textarea id="set_vac_msg" rows="3">${escapeHtml(s.vacation?.message||'')}</textarea></div>
+    <div class="divider"></div>
+    <button class="btn btn-danger" onclick="deleteCurrentProfile()">🗑 Eliminar este perfil y todos sus datos</button>
+    <div class="modal-actions"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveSettings()">Guardar</button></div>
+  `);
+}
+function saveSettings() {
+  data.settings.therapistName = document.getElementById('set_name').value;
+  data.settings.license = document.getElementById('set_license').value;
+  data.settings.taxId = document.getElementById('set_tax').value;
+  data.settings.address = document.getElementById('set_address').value;
+  data.settings.currency = document.getElementById('set_currency').value || '$';
+  data.settings.monthlyGoal = parseFloat(document.getElementById('set_goal').value)||0;
+  data.settings.vacation = {
+    active: document.getElementById('set_vac_active').checked,
+    from: document.getElementById('set_vac_from').value,
+    to: document.getElementById('set_vac_to').value,
+    message: document.getElementById('set_vac_msg').value
+  };
+  data.settings.openaiKey = document.getElementById('set_ai_key').value.trim();
+  saveData(); closeModal(); renderMain();
+}
+
+function openBackup() {
+  openModal(`
+    <h2>Copias de seguridad</h2>
+    <p style="color: var(--text-light); font-size: 13.5px; line-height: 1.6; margin-bottom: 14px;">Toda tu información vive en este navegador. Hacé copias periódicas para no perder nada.</p>
+
+    <h3 style="font-size: 15px; color: var(--azul-profundo); margin-bottom: 8px;">🔒 Exportar perfil completo (encriptado, para mover entre dispositivos)</h3>
+    <p style="font-size: 12.5px; color: var(--text-light); margin-bottom: 10px;">Descarga un archivo <code>.psioffice</code> encriptado con tu contraseña. Lo podés abrir en otra compu con "Importar perfil" al entrar.</p>
+    <button class="btn btn-primary" onclick="exportProfilePackage()">↗ Exportar mi perfil</button>
+
+    <div class="divider"></div>
+
+    <h3 style="font-size: 15px; color: var(--azul-profundo); margin-bottom: 8px;">📄 Backup simple (sin encriptar, solo tus datos)</h3>
+    <p style="font-size: 12.5px; color: var(--text-light); margin-bottom: 10px;">Archivo <code>.json</code> legible con tus datos actuales. Útil si solo querés hacer un respaldo rápido o migrar a otra herramienta.</p>
+    <button class="btn" onclick="downloadBackup()">⬇ Descargar backup .json</button>
+
+    <div class="divider"></div>
+
+    <h3 style="font-size: 15px; color: var(--azul-profundo); margin-bottom: 8px;">↻ Restaurar desde backup .json (sobreescribe lo actual)</h3>
+    <input type="file" id="restoreFile" accept=".json" style="margin-bottom: 10px;">
+    <button class="btn btn-danger" onclick="restoreBackup()">↻ Restaurar</button>
+
+    <div class="modal-actions"><button class="btn" onclick="closeModal()">Cerrar</button></div>
+  `);
+}
+function downloadBackup() {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  saveAs(blob, `psioffice_backup_${new Date().toISOString().split('T')[0]}.json`);
+  toast('✓ Backup descargado');
+}
+function restoreBackup() {
+  const file = document.getElementById('restoreFile').files[0];
+  if (!file) { toast('Elegí un archivo primero'); return; }
+  if (!confirm('¿Reemplazar todos los datos actuales? Esto no se puede deshacer.')) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const restored = JSON.parse(e.target.result);
+      migrateData(restored); data = restored; saveData();
+      closeModal(); renderSidebar(); renderMain();
+      toast('✓ Backup restaurado');
+    } catch(err) { toast('Error al restaurar: archivo inválido'); }
+  };
+  reader.readAsText(file);
+}
+
+function newPatientModal() {
+  openModal(`<h2>Nuevo paciente</h2>
+    <div class="field"><label>Nombre completo</label><input id="new_name" placeholder="Ej: Juan Pérez" autofocus></div>
+    <div class="modal-actions"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="confirmNewPatient()">Crear</button></div>`);
+  setTimeout(() => document.getElementById('new_name')?.focus(), 100);
+}
+function confirmNewPatient() {
+  const name = document.getElementById('new_name').value.trim();
+  if (!name) { toast('Ingresá un nombre'); return; }
+  const p = createPatient(name); closeModal(); selectPatient(p.id);
+}
+function deletePatient() {
+  if (!confirm('¿Eliminar este paciente y todos sus datos?')) return;
+  data.patients = data.patients.filter(p => p.id !== currentPatientId);
+  saveData(); currentPatientId = null; showView('patients');
+}
+
+// ==================== EXPORT PATIENT ====================
+async function exportCurrentPatient() {
+  const p = getPatient(currentPatientId); if (!p) return;
+  if (!p.personal.name || p.personal.name === 'Nuevo paciente') {
+    toast('Cargá el nombre del paciente antes de exportar');
+    selectTab('personal'); return;
+  }
+  toast('Generando archivos...');
+  const zip = new JSZip();
+  const folderName = 'paciente_' + sanitize(p.personal.name) + '_' + new Date().toISOString().split('T')[0];
+  const folder = zip.folder(folderName);
+  const docxBlob = await buildDocx(p);
+  folder.file('1_Historia_clinica.docx', docxBlob);
+  const xlsxBlob = buildXlsx(p);
+  folder.file('2_Sesiones_y_pagos.xlsx', xlsxBlob);
+  if (p.genogram.nodes.length > 0) {
+    const prev = currentTab; currentTab = 'genogram'; renderPatient(document.getElementById('mainContent'));
+    await new Promise(r => setTimeout(r, 300));
+    const pngBlob = await exportGenogramImage(true);
+    if (pngBlob) folder.file('3_Genograma.png', pngBlob);
+    currentTab = prev; renderPatient(document.getElementById('mainContent'));
+  }
+  const readme = `Paciente: ${p.personal.name}\nExportado: ${new Date().toLocaleString('es-AR')}\nProfesional: ${data.settings.therapistName || '(sin especificar)'}\n\nContenido:\n- 1_Historia_clinica.docx (datos, anamnesis, sesiones, evoluciones)\n- 2_Sesiones_y_pagos.xlsx (planilla)\n${p.genogram.nodes.length > 0 ? '- 3_Genograma.png\n' : ''}\nPara Google Drive:\n1. Entrá a drive.google.com\n2. Creá carpeta con nombre del paciente\n3. Arrastrá los archivos\n4. Click derecho > "Abrir con Google Docs/Sheets" para convertirlos.`;
+  folder.file('LEEME.txt', readme);
+  const zipBlob = await zip.generateAsync({type: 'blob'});
+  saveAs(zipBlob, folderName + '.zip');
+  toast('✓ ZIP descargado');
+}
+
+async function buildDocx(p) {
+  const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } = docx;
+  const children = [];
+  const h = (t, level=HeadingLevel.HEADING_1) => new Paragraph({text: t, heading: level, spacing: {before: 200, after: 100}});
+  const par = (t) => new Paragraph({children: [new TextRun({text: t||'—'})], spacing: {after: 80}});
+  const fp = (l, v) => new Paragraph({children: [new TextRun({text: l + ': ', bold: true}), new TextRun({text: v||'—'})], spacing: {after: 80}});
+  children.push(new Paragraph({text: 'Historia clínica', heading: HeadingLevel.TITLE, alignment: AlignmentType.CENTER}));
+  children.push(new Paragraph({text: p.personal.name, alignment: AlignmentType.CENTER, spacing: {after: 300}}));
+  children.push(h('1. Datos personales'));
+  const pe = p.personal;
+  [['Nombre',pe.name],['Fecha de nacimiento',pe.dob],['Género',pe.gender],['Documento',pe.document],['Teléfono',pe.phone],['Email',pe.email],['Dirección',pe.address],['Ocupación',pe.occupation],['Estudios',pe.education],['Estado civil',pe.maritalStatus],['Derivado por',pe.referredBy]].forEach(([l,v])=>children.push(fp(l,v)));
+  children.push(h('2. Motivo de consulta'));
+  children.push(par(pe.motiveOfConsultation));
+  children.push(h('3. Anamnesis'));
+  const a = p.anamnesis;
+  [['Antecedentes personales',a.personalBg],['Antecedentes familiares',a.familyBg],['Desarrollo',a.developmentalHistory],['Escolares',a.schoolBg],['Laborales',a.workBg],['Médicos',a.medicalBg],['Psiquiátricos',a.psychiatricBg],['Medicación',a.currentMedication],['Sustancias',a.substanceUse],['Eventos significativos',a.significantEvents],['Red de apoyo',a.socialSupport],['Hobbies',a.hobbies]].forEach(([l,v])=>{children.push(h(l,HeadingLevel.HEADING_2));children.push(par(v));});
+  children.push(h('4. Sesiones'));
+  if (!p.sessions.length) children.push(par('Sin sesiones.'));
+  for (const s of p.sessions) {
+    children.push(h(`Sesión ${formatDate(s.date)} ${s.time||''}`, HeadingLevel.HEADING_2));
+    [['Duración',(s.duration||50)+' min'],['Notas',s.notes],['Intervenciones',s.interventions],['Tareas',s.homework],['Monto',money(s.amount||0)],['Estado',s.paid?'Pagada':'Pendiente']].forEach(([l,v])=>children.push(fp(l,v)));
+  }
+  if (p.evolutionNotes?.length) {
+    children.push(h('5. Notas de evolución (Ley 26.529)'));
+    p.evolutionNotes.forEach((n,i) => {
+      children.push(h(`Nota N° ${i+1} — ${formatDate(n.date)}`, HeadingLevel.HEADING_2));
+      [['Modalidad',n.modality],['Motivo',n.motive],['Contenido',n.content],['Intervenciones',n.interventions],['Plan',n.plan]].forEach(([l,v])=>children.push(fp(l,v)));
+    });
+  }
+  if (p.evaluations.length > 0) {
+    children.push(h('6. Evaluaciones'));
+    for (const e of p.evaluations) {
+      children.push(h(`${e.testName||'Evaluación'} — ${formatDate(e.date)}`, HeadingLevel.HEADING_2));
+      children.push(fp('Resultados', e.results)); children.push(fp('Observaciones', e.observations));
+    }
+  }
+  const doc = new Document({sections: [{children}]});
+  return await Packer.toBlob(doc);
+}
+
+function buildXlsx(p) {
+  const wb = XLSX.utils.book_new();
+  const sData = [['Fecha','Hora','Duración','Notas','Intervenciones','Tareas','Monto','Pagada','Comisión']];
+  for (const s of p.sessions) sData.push([s.date, s.time||'', s.duration||50, s.notes||'', s.interventions||'', s.homework||'', s.amount||0, s.paid?'Sí':'No', s.commissionPaid?'Sí':(data.settings.isInNetwork?'No':'-')]);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sData), 'Sesiones');
+  const paid = p.sessions.filter(s=>s.paid).reduce((sum,s)=>sum+(s.amount||0),0);
+  const pending = p.sessions.filter(s=>!s.paid).reduce((sum,s)=>sum+(s.amount||0),0);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Concepto','Monto'],['Total cobrado',paid],['Total pendiente',pending],['Total facturado',paid+pending],['Cantidad sesiones',p.sessions.length]]), 'Resumen');
+  if (p.evaluations.length > 0) {
+    const ed = [['Fecha','Test','Resultados','Observaciones']];
+    for (const e of p.evaluations) ed.push([e.date, e.testName, e.results, e.observations]);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ed), 'Evaluaciones');
+  }
+  const out = XLSX.write(wb, {bookType: 'xlsx', type: 'array'});
+  return new Blob([out], {type: 'application/octet-stream'});
+}
+
+// ==================== THEME ====================
+function toggleTheme() {
+  data.settings.darkMode = !data.settings.darkMode;
+  document.body.classList.toggle('dark', data.settings.darkMode);
+  saveData();
+}
+
+// ==================== INIT ====================
+window.getPatient = getPatient;
+showLogin();
+</script>
+</body>
+</html>
