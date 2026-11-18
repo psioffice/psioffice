@@ -677,6 +677,86 @@
     50% { background: var(--azul-profundo); transform: scale(1.05); }
     100% { background: var(--success); }
   }
+
+  /* ===== LOGIN SCREEN MOBILE COMPACT ===== */
+  @media (max-width: 900px) {
+    #loginScreen {
+      padding: 10px !important;
+      min-height: 100vh;
+      min-height: 100dvh; /* dynamic viewport height, respects iOS browser UI */
+    }
+    #loginScreen > div {
+      margin: 0 auto !important;
+      padding: 20px 20px 24px !important;
+      border-radius: 14px !important;
+      max-width: 100% !important;
+    }
+    #loginScreen > div > div:first-child {
+      margin-bottom: 14px !important;
+    }
+    #loginScreen img {
+      width: 60px !important;
+    }
+    #loginScreen h1 {
+      font-size: 24px !important;
+    }
+    #loginScreen p {
+      font-size: 11px !important;
+      margin: 0 !important;
+    }
+    #loginContent h2 {
+      font-size: 17px !important;
+      margin-bottom: 6px !important;
+    }
+    #loginContent > p {
+      font-size: 12.5px !important;
+      line-height: 1.4 !important;
+      margin-bottom: 12px !important;
+    }
+    #loginContent .field {
+      margin-bottom: 8px !important;
+    }
+    #loginContent .field label {
+      font-size: 10px !important;
+      margin-bottom: 3px !important;
+    }
+    #loginContent .field input {
+      padding: 10px 12px !important;
+      font-size: 15px !important;
+    }
+    #loginContent .field > div {
+      font-size: 10px !important;
+      margin-top: 2px !important;
+      line-height: 1.3;
+    }
+    #loginContent .alert-item {
+      padding: 8px 10px !important;
+      font-size: 11.5px !important;
+      line-height: 1.3;
+      margin-bottom: 10px !important;
+    }
+    #loginContent .btn {
+      padding: 13px !important;
+      font-size: 14px !important;
+    }
+    #loginContent .btn-primary {
+      font-size: 15px !important;
+      font-weight: 700 !important;
+    }
+    #loginContent .divider {
+      margin: 10px 0 !important;
+    }
+  }
+
+  @media (max-height: 740px) {
+    /* Extra compact for small phones */
+    #loginScreen img { width: 50px !important; }
+    #loginScreen h1 { font-size: 22px !important; }
+    #loginScreen > div > div:first-child { margin-bottom: 10px !important; }
+    #loginContent h2 { font-size: 16px !important; }
+    #loginContent > p { margin-bottom: 8px !important; }
+    #loginContent .field { margin-bottom: 7px !important; }
+  }
 </style>
 </head>
 <body>
@@ -1018,6 +1098,7 @@ function defaultData() {
       darkMode: false,
       taxId: '',
       address: '',
+      email: '',
       vacation: { active: false, from: '', to: '', message: '' },
       whatsappTemplates: defaultTemplates(),
       openaiKey: '',
@@ -1378,7 +1459,8 @@ function renderMonthCalendar(el) {
           <button class="btn" onclick="calendarMonth = new Date(); renderMain();">Hoy</button>
           <button class="btn" onclick="changeCalendarMonth(1)">Siguiente →</button>
           <button class="btn btn-secondary" onclick="openNewSessionModal(new Date().toISOString().split('T')[0])">+ Nueva sesión</button>
-          <button class="btn btn-primary" onclick="exportMonthICS()">📥 .ics</button>
+          <button class="btn btn-primary" onclick="openEmailAlertsModal()">🔔 Alertas por email</button>
+          <button class="btn" onclick="exportMonthICS()">📥 .ics</button>
         </div>
       </div>
 
@@ -1516,6 +1598,62 @@ function changeCalendarWeek(delta) {
   renderMain();
 }
 
+
+// ===== EMAIL ALERTS INTEGRATION (via Google Calendar) =====
+function openEmailAlertsModal() {
+  const hasEmail = (data.settings.email||'').trim();
+  openModal(`
+    <h2>🔔 Alertas por email vía Google Calendar</h2>
+    <p style="color: var(--text-light); font-size: 13.5px; line-height: 1.6; margin-bottom: 16px;">Como PsiOffice funciona 100% en tu computadora (sin servidor), usamos Google Calendar que ya tiene excelentes alertas por mail. Es un setup único que tarda 5 minutos y después te llega todo automático.</p>
+
+    ${!hasEmail ? `
+      <div class="alert-item warning" style="margin-bottom: 14px;">
+        <div><strong>⚠ Primero cargá tu email profesional</strong> en Ajustes (⚙), así las alertas se personalizan con tu dirección.<br><br>
+        <button class="btn btn-primary" onclick="closeModal(); openSettings();">⚙ Ir a Ajustes</button></div>
+      </div>
+    ` : `
+      <div class="alert-item success" style="margin-bottom: 14px; font-size: 13px;"><div>✓ Email configurado: <strong>${escapeHtml(hasEmail)}</strong></div></div>
+    `}
+
+    <h3 style="color: var(--azul-profundo); font-size: 16px; margin-bottom: 10px;">Paso 1 — Descargar tus sesiones</h3>
+    <p style="font-size: 13px; color: var(--text-light); margin-bottom: 10px;">Bajá un archivo con todas las sesiones del mes actual en formato que entiende Google Calendar.</p>
+    <button class="btn btn-primary" onclick="exportMonthICS()" style="margin-bottom: 20px;">📥 Descargar sesiones del mes (.ics)</button>
+
+    <h3 style="color: var(--azul-profundo); font-size: 16px; margin-bottom: 10px;">Paso 2 — Importar a Google Calendar</h3>
+    <ol style="font-size: 13.5px; line-height: 1.7; padding-left: 20px; color: var(--text); margin-bottom: 20px;">
+      <li>Abrí <a href="https://calendar.google.com" target="_blank" style="color: var(--azul-medio); font-weight: 600;">calendar.google.com</a> en una pestaña nueva.</li>
+      <li>Arriba a la derecha, clic al engranaje ⚙ → <strong>Configuración</strong>.</li>
+      <li>En el menú lateral, clic en <strong>"Importar y exportar"</strong>.</li>
+      <li>Botón <strong>"Seleccionar archivo del equipo"</strong> → elegí el archivo .ics que descargaste recién.</li>
+      <li>Abajo clic <strong>"Importar"</strong>.</li>
+      <li>Listo: tus sesiones aparecen en Google Calendar.</li>
+    </ol>
+
+    <h3 style="color: var(--azul-profundo); font-size: 16px; margin-bottom: 10px;">Paso 3 — Activar el mail diario con tu agenda</h3>
+    <ol style="font-size: 13.5px; line-height: 1.7; padding-left: 20px; color: var(--text); margin-bottom: 20px;">
+      <li>Seguí en calendar.google.com → ⚙ → <strong>Configuración</strong>.</li>
+      <li>En el menú lateral, bajá a <strong>"Configuración de mis calendarios"</strong> → clic en tu calendario principal.</li>
+      <li>Clic en <strong>"Notificaciones generales"</strong>.</li>
+      <li>En <strong>"Agenda diaria"</strong>, elegí <strong>"Correo electrónico"</strong>.</li>
+      <li>Listo: todas las mañanas a las 5am te llega un mail con las sesiones del día.</li>
+    </ol>
+
+    <h3 style="color: var(--azul-profundo); font-size: 16px; margin-bottom: 10px;">Paso 4 — Alertas por mail antes de cada sesión (opcional)</h3>
+    <ol style="font-size: 13.5px; line-height: 1.7; padding-left: 20px; color: var(--text); margin-bottom: 14px;">
+      <li>En la misma pantalla "Configuración de mi calendario", bajá a <strong>"Notificaciones de eventos"</strong>.</li>
+      <li>Clic <strong>"Añadir notificación"</strong> → elegí <strong>"Correo electrónico"</strong> + poné los minutos (ej: 30).</li>
+      <li>Listo: 30 min antes de cada sesión te llega un mail.</li>
+    </ol>
+
+    <div class="alert-item info" style="font-size: 12.5px;"><div>💡 <strong>Cada mes:</strong> repetí los Pasos 1 y 2 para las sesiones nuevas que vayas cargando. Los pasos 3 y 4 son únicos.</div></div>
+
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cerrar</button>
+      <button class="btn btn-primary" onclick="window.open('https://calendar.google.com', '_blank')">Abrir Google Calendar →</button>
+    </div>
+  `);
+}
+
 // ===== NEW SESSION MODAL (with recurring option) =====
 function openNewSessionModal(dateStr, timeStr) {
   const date = dateStr || new Date().toISOString().split('T')[0];
@@ -1603,6 +1741,30 @@ function buildICSEvent(session, patientName) {
   const end = new Date(start.getTime() + (session.duration||50)*60000);
   const fmt = (d) => d.toISOString().replace(/[-:]/g,'').split('.')[0] + 'Z';
   const uid = session.id + '@psioffice';
+  const email = (data.settings.email || '').trim();
+  const alarms = [
+    'BEGIN:VALARM',
+    'TRIGGER:-PT15M',
+    'ACTION:DISPLAY',
+    'DESCRIPTION:Próxima sesión en 15 min',
+    'END:VALARM',
+    'BEGIN:VALARM',
+    'TRIGGER:-PT1H',
+    'ACTION:DISPLAY',
+    'DESCRIPTION:Sesión en 1 hora',
+    'END:VALARM'
+  ];
+  if (email) {
+    alarms.push(
+      'BEGIN:VALARM',
+      'TRIGGER:-PT30M',
+      'ACTION:EMAIL',
+      'ATTENDEE:MAILTO:' + email,
+      'SUMMARY:Próxima sesión: ' + patientName,
+      'DESCRIPTION:Tenés sesión con ' + patientName + ' en 30 minutos.',
+      'END:VALARM'
+    );
+  }
   return [
     'BEGIN:VEVENT',
     'UID:' + uid,
@@ -1611,11 +1773,7 @@ function buildICSEvent(session, patientName) {
     'DTEND:' + fmt(end),
     'SUMMARY:Sesión con ' + patientName,
     'DESCRIPTION:PsiOffice - ' + (session.notes || '').replace(/\n/g,'\\n').slice(0,200),
-    'BEGIN:VALARM',
-    'TRIGGER:-PT15M',
-    'ACTION:DISPLAY',
-    'DESCRIPTION:Próxima sesión en 15 min',
-    'END:VALARM',
+    ...alarms,
     'END:VEVENT'
   ].join('\r\n');
 }
@@ -3531,6 +3689,7 @@ function openSettings() {
       <div class="field"><label>Matrícula</label><input id="set_license" value="${escapeHtml(s.license)}"></div>
       <div class="field"><label>CUIT / CUIL</label><input id="set_tax" value="${escapeHtml(s.taxId||'')}"></div>
     </div>
+    <div class="field"><label>Email profesional (para recordatorios y alertas)</label><input id="set_email" type="email" value="${escapeHtml(s.email||'')}" placeholder="tuemail@gmail.com"></div>
     <div class="field"><label>Dirección del consultorio</label><input id="set_address" value="${escapeHtml(s.address||'')}"></div>
     <div class="grid-2">
       <div class="field"><label>Símbolo de moneda</label><input id="set_currency" value="${escapeHtml(s.currency)}"></div>
@@ -3558,6 +3717,7 @@ function saveSettings() {
   data.settings.license = document.getElementById('set_license').value;
   data.settings.taxId = document.getElementById('set_tax').value;
   data.settings.address = document.getElementById('set_address').value;
+  data.settings.email = document.getElementById('set_email').value.trim();
   data.settings.currency = document.getElementById('set_currency').value || '$';
   data.settings.monthlyGoal = parseFloat(document.getElementById('set_goal').value)||0;
   data.settings.vacation = {
